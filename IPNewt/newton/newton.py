@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-@File    :   Newton.py
+@File    :   newton.py
 @Time    :   2021/11/13
 @Desc    :   Class definition for the Newton solver
 """
