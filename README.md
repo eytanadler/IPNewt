@@ -1,2 +1,2 @@
-# NewtIST
-Newton Interior Solver Toolbox
+# IPNewt
+Interior Point Newton Solver for solving box-constrained nonlinear systems.

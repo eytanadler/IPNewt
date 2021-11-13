@@ -1,0 +1,5 @@
+IPNewt.egg-info/*
+.vscode/
+.DS_Store
+*.pyc
+*~
