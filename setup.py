@@ -35,6 +35,8 @@ setup(
     packages=[
         'ipnewt',
         'ipnewt.newton',
+        'ipnewt.linear',
+        'ipnewt.line_search'
     ],
     python_requires=">=3.6",
     install_requires=[
