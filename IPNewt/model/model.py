@@ -17,8 +17,6 @@ import numpy as np
 # ==============================================================================
 # Extension modules
 # ==============================================================================
-from newton.newton import NewtonSolver
-from linear.linear_solver import ScipySolver
 
 
 class Model(object):
@@ -27,30 +25,33 @@ class Model(object):
         Initialize all attributed
         """
         self.options = {}
-        self.nonlinear_solver = NewtonSolver()
-        self.nonlinear_solver.linear_solver = ScipySolver()
+        self.residual = None
+        self.states = None
+        self.jacobian = None
 
     def _check_options(self):
         pass
 
-    def setup(self):
-        # Any setup operations go here
-        pass
-
-    def run(self):
+    def _compute_jacobian(self):
         """
-        Drives the residuals in the model to zero using the nonlinear solver.
+        Computes the partial derivatives and sets up the Jacobian matrix.
         """
         pass
 
     def compute_residuals(self):
         """
-        Compute the residuals of the nonlinear equations in the model.
+        USER DEFINED
+
+        Computes the residuals of the model (which all equal zero when the
+        model is solved). Sets self.residual to a numpy vector.
         """
         pass
 
     def compute_partials(self):
         """
-        Compute the residuals of the nonlinear equations in the model.
+        USER DEFINED
+
+        Compute the partial derivatives of the residuals of the nonlinear
+        equations in the model.
         """
         pass
