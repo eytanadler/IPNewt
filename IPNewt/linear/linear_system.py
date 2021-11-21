@@ -25,9 +25,7 @@ class LinearSystem(object):
         """
         Initialize all attributed
         """
-        self._problem = None
         self.jacobian = None
-        self.linear_solver = None
         self.model = None
         self.residuals = None
         self.mu = None

@@ -45,7 +45,7 @@ class Model(object):
 
         self.options = {}
         self.n_states = n_states
-        self.residual = np.empty(n_states)
+        self.residuals = np.empty(n_states)
         self.states = np.ones(n_states)  # initialize all states to one
         self.jacobian = np.empty((n_states, n_states))
 
@@ -83,27 +83,49 @@ class Model(object):
         for i in range(self.n_states):
             if self.lower[i] > self.upper[i]:
                 raise ValueError(f"Lower bound is greater than upper bound on state {i}")
+    
+    def run(self):
+        """
+        Computes the residuals and the Jacobian matrix.
+        """
+        self._compute_residuals()
+        self._compute_jacobian()
 
+    def _compute_residuals(self):
+        """
+        Internally pass states and residuals to user-defined function.
+        """
+        self.compute_residuals(self.states, self.residuals)
+    
     def _compute_jacobian(self):
         """
-        Computes the partial derivatives and sets up the Jacobian matrix.
+        Internally pass states and jacobian to user-defined function.
         """
-        pass
+        self.compute_jacobian(self.states, self.jacobian)
 
-    def compute_residuals(self):
-        """
-        USER DEFINED
-
-        Computes the residuals of the model (which all equal zero when the
-        model is solved). Sets self.residual (numpy vector of length self.n_states).
-        """
-        pass
-
-    def compute_partials(self):
+    def compute_residuals(self, states, residuals):
         """
         USER DEFINED
 
-        Compute the partial derivatives of the residuals of the nonlinear
-        equations in the model.
+        Computes the residuals of the model (which all equal zero when the model is
+        solved). Sets residuals (numpy vector with a length of the number of states).
+        """
+        pass
+
+    def compute_jacobian(self, states, jacobian):
+        """
+        USER DEFINED
+
+        Sets the Jacobian matrix with the partial derivatives
+        of the nonlinear equations in the model. The order of the Jacobian is
+
+        dr0/du0     dr0/du1     dr0/du2     ...
+        dr1/du0     dr1/du1     ...
+        .           .
+        .             .
+        .               .
+
+        where r represents the residuals and u represents the states. Thus, to set
+        the dr0/du1 partial derivative, set jacobian[0, 1].
         """
         pass
