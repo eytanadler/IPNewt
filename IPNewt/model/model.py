@@ -13,7 +13,6 @@
 # External Python modules
 # ==============================================================================
 import numpy as np
-import copy
 
 # ==============================================================================
 # Extension modules
@@ -57,7 +56,7 @@ class Model(object):
             if len(lower) != n_states:
                 raise ValueError("If the lower bounds are defined as an iterable, \
                                   it must have a length of n_states")
-            self.lower = copy.deepcopy(lower)
+            self.lower = lower.copy()
         else:
             self.lower = -np.inf * np.ones(n_states)
 
@@ -67,9 +66,13 @@ class Model(object):
             if len(upper) != n_states:
                 raise ValueError("If the upper bounds are defined as an iterable, \
                                   it must have a length of n_states")
-            self.upper = copy.deepcopy(upper)
+            self.upper = upper.copy()
         else:
             self.upper = -np.inf * np.ones(n_states)
+        
+        # Mask for bounds that are defined
+        self.lower_finite_mask = np.isfinite(self.lower)
+        self.upper_finite_mask = np.isfinite(self.upper)
 
     def _check_options(self):
         """

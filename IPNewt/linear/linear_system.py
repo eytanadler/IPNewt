@@ -89,8 +89,8 @@ class LinearSystem(object):
         ub_mask = self.model.upper_finite_mask
 
         # Get the bounds from the model
-        ub = self.model.upper_bounds
-        lb = self.model.lower_bounds
+        ub = self.model.upper
+        lb = self.model.lower
 
         # Get the states from the model
         u = self.model.states
@@ -101,7 +101,7 @@ class LinearSystem(object):
         # Compute the penalized residual for each state that has a
         # corresponding finite bound
         self.residuals[lb_mask] = self.model.residuals[lb_mask] - np.sum(self.mu * np.log(u[lb_mask] - lb[lb_mask]))
-        self.residuals[ub_mask] = self.model.residuals[ub_mask] - np.sum(self.mu * np.log(u[ub_mask] - ub[ub_mask]))
+        self.residuals[ub_mask] = self.model.residuals[ub_mask] - np.sum(self.mu * np.log(ub[ub_mask] - u[ub_mask]))
 
     def factorize(self):
         pass
