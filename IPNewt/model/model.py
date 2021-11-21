@@ -47,7 +47,7 @@ class Model(object):
         self.n_states = n_states
         self.residual = np.empty(n_states)
         self.states = np.ones(n_states)  # initialize all states to one
-        self.jacobian = None
+        self.jacobian = np.empty((n_states, n_states))
 
         # Set the bounds if necessary
         if isinstance(lower, (float, int, complex)):
@@ -95,7 +95,7 @@ class Model(object):
         USER DEFINED
 
         Computes the residuals of the model (which all equal zero when the
-        model is solved). Sets self.residual to a numpy vector.
+        model is solved). Sets self.residual (numpy vector of length self.n_states).
         """
         pass
 
