@@ -78,8 +78,8 @@ class NewtonSolver(object):
 
             # Pass the linear system to the linear solver to get the
             # newton update vector.
-            self.linear_system.factorize(self.linear_system)
-            du = self.linear_system.solve(self.linear_system)
+            self.linear_system.factorize()
+            du = self.linear_system.solve()
 
             # Run the linesearch
             self.linesearch.solve(model.states, du)
