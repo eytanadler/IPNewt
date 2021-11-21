@@ -8,6 +8,7 @@
 # ==============================================================================
 # Standard Python modules
 # ==============================================================================
+import copy
 
 # ==============================================================================
 # External Python modules
@@ -21,16 +22,27 @@ from scipy.linalg import lu_factor, lu_solve
 
 
 class LinearSystem(object):
-    def __init__(self):
+    def __init__(self, options={}):
         """
-        Initialize all attributed
+        Valid LinearSystem options:
+            "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
+            "jacboain penalty" : if True (default), add logarithmic penalty to Jacobian
+            "residual penalty" : if True (default), add logarithmic penalty to residual vector
         """
         self.jacobian = None
         self.model = None
         self.residuals = None
         self.mu = None
         self.tau = None
-        self.options = {}
+        self.options = copy.deepcopy(options)
+
+        # Set option defaults if not already defined
+        opt_defaults = {"pseudo transient": True,
+                        "jacobian penalty": True,
+                        "residual penalty": True}
+        for opt in opt_defaults.keys():
+            if opt not in self.options.keys():
+                self.options[opt] = opt_defaults[opt]
 
     def _check_options(self):
         pass
@@ -39,7 +51,26 @@ class LinearSystem(object):
         # Any setup operations go here
         pass
 
-    def update_pt_jacobian(self):
+    def update(self):
+        """
+        Update the Jacobian and residuals with the model's Jacobian and residuals.
+        """
+        # Get the residuals and Jacobian from the model
+        self.residuals = self.model.residuals.copy()
+        self.jacobian = self.model.jacobian.copy()
+
+        # Add extra terms if the options say so
+        if self.options["pseudo transient"]:
+            self.update_pseudo_transient_jacobian()
+        
+        if self.options["jacobian penalty"]:
+            self.update_penalty_jacobian()
+        
+        if self.options["residual penalty"]:
+            self.update_penalty_residual()
+
+
+    def update_pseudo_transient_jacobian(self):
         """
         Add pseudo transient component to Jacobian.
         """
@@ -93,13 +124,10 @@ class LinearSystem(object):
         # Get the states from the model
         u = self.model.states
 
-        # Get the residuals from the model
-        self.residuals = self.model.residuals.copy()
-
         # Compute the penalized residual for each state that has a
         # corresponding finite bound
-        self.residuals[lb_mask] = self.model.residuals[lb_mask] - np.sum(self.mu * np.log(u[lb_mask] - lb[lb_mask]))
-        self.residuals[ub_mask] = self.model.residuals[ub_mask] - np.sum(self.mu * np.log(ub[ub_mask] - u[ub_mask]))
+        self.residuals[lb_mask] -= self.mu * np.log(u[lb_mask] - lb[lb_mask])
+        self.residuals[ub_mask] -= self.mu * np.log(ub[ub_mask] - u[ub_mask])
 
     def factorize(self):
         pass

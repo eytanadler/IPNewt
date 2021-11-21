@@ -76,8 +76,7 @@ class NewtonSolver(object):
                 model.run()
                 self.linear_system.update()
 
-            # Pass the linear system to the linear solver to get the
-            # newton update vector.
+            # Solve the linear system
             self.linear_system.factorize()
             du = self.linear_system.solve()
 
