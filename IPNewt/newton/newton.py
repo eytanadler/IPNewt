@@ -8,6 +8,7 @@
 # ==============================================================================
 # Standard Python modules
 # ==============================================================================
+import copy
 
 # ==============================================================================
 # External Python modules
@@ -20,22 +21,72 @@ import numpy as np
 
 
 class NewtonSolver(object):
-    def __init__(self):
+    def __init__(self, options={}):
         """
-        Initialize all attributed
+        Valid Newton Solver Options:
+            "atol": float (default=1e-6), the absolute convergence tolerance
+            "rtol": float (default=1e-99), the relative convergence tolerance
+            "beta": float (default=10.0), geometric penalty multiplier
+            "rho": float (default=0.5), constant penalty scaling term
+            "mu": float (default=1e-10), initial penalty parameter
+            "tau": float (default=0.1), initial psuedo transient time step
+            "gamma": float (default=2.0), pseudo transient time step geometric multiplier
+            "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
+            "interior penalty" : if True (default), add logarithmic penalty to Jacobian
+            "residual penalty" : if False (default), add logarithmic penalty to residual vector
         """
         self.model = None
         self._iter_count = 0
-        self.options = {}
+        self.options = copy.deepcopy(options)
         self.linesearch = None
         self.linear_system = None
+        self.mu_lower = None
+        self.mu_upper = None
+
+        # Set options defaults
+        opt_defaults = {
+            "pseudo transient": True,
+            "interior penalty": True,
+            "residual penalty": False,
+            "atol": 1e-6,
+            "rtol": 1e-99,
+            "beta": 10.0,
+            "rho": 0.5,
+            "mu": 1e-10,
+            "tau": 0.1,
+            "gamma": 2.0,
+        }
+        for opt in opt_defaults.keys():
+            if opt not in self.options.keys():
+                self.options[opt] = opt_defaults[opt]
 
     def _check_options(self):
         pass
 
     def setup(self):
-        # Any setup operations go here
-        pass
+        # Set the initial mu for the linear system and line search
+        if self.options["interior penalty"]:
+            self.linear_system.mu_lower = self.options["mu"]
+            self.linear_system.mu_upper = self.options["mu"]
+            self.linesearch.mu_lower = self.options["mu"]
+            self.linesearch.mu_upper = self.options["mu"]
+
+        # Set the initial time step for the linear system
+        if self.options["pseudo transient"]:
+            self.linear_system.tau = self.options["tau"]
+
+        # Set options for the linear system
+        self.linear_system.options["jacobian penalty"] = self.options["interior penalty"]
+        self.linear_system.options["pseudo transient"] = self.options["pseudo transient"]
+        self.linear_system.options["residual penalty"] = self.options["residual penalty"]
+
+        # Set the linear system model
+        self.linear_system.model = self.model
+
+        # Set options and model for the linesearch
+        if self.linesearch:
+            self.linesearch.options["residual penalty"] = self.options["interior penalty"]
+            self.linesearch.model = self.model
 
     def _start_solver(self):
         """
@@ -49,6 +100,46 @@ class NewtonSolver(object):
 
     def _objective(self):
         return np.linalg.norm(self.model.residuals)
+
+    def _update_penalty(self):
+        beta = self.options["beta"]
+        rho = self.options["rho"]
+
+        u = self.model.states
+        du = self.linear_system.du
+
+        lb_mask = self.model.lower_finite_mask
+        ub_mask = self.model.upper_finite_mask
+
+        lb = self.model.lower_bounds
+        ub = self.model.upper_bounds
+
+        # Initialize d_alpha to zeros
+        # We only want to store and calculate d_alpha for states that
+        # have bounds
+        d_alpha_lower = np.zeros(np.count_nonzero(lb_mask))
+        d_alpha_upper = np.zeros(np.count_nonzero(ub_mask))
+
+        # Compute d_alpha for all states with finite bounds
+        t_lower = lb[lb_mask] - u[lb_mask]
+        t_upper = u[ub_mask] - ub[ub_mask]
+
+        # d_alpha > 0 means that the state has violated a bound
+        # d_alpha < 0 means that the state has not violated a bound
+        d_alpha_lower = t_lower / np.abs(du[lb_mask])
+        d_alpha_upper = t_upper / np.abs(du[ub_mask])
+
+        # We want to set all values of d_alpha < 0 to 0 so that the
+        # penalty logic and formula won't do anything for those terms
+        d_alpha_lower = np.where(d_alpha_lower < 0, 0, d_alpha_lower)
+        d_alpha_upper = np.where(d_alpha_upper < 0, 0, d_alpha_upper)
+
+        # Now compute the penalty update
+        if d_alpha_lower.size > 0:
+            self.mu_lower *= beta * d_alpha_lower + rho
+
+        if d_alpha_upper.size > 0:
+            self.mu_upper *= beta * d_alpha_upper + rho
 
     def solve(self):
         # Get the options
@@ -73,15 +164,31 @@ class NewtonSolver(object):
         while self._iter_count <= max_iter:
             # Logic for a single Newton iteration
             if self._iter_count > 0:
+                # If interior penalty method is turned on
+                if self.options["interior penalty"]:
+                    self._update_penalty()
+                    self.linear_system.mu_lower = self.mu_lower
+                    self.linear_system.mu_upper = self.mu_upper
+                    self.linesearch.mu_lower = self.mu_lower
+                    self.linesearch.mu_upper = self.mu_upper
+
+                # Geometrically update the pseduo transient term
+                if self.options["pseudo transient"]:
+                    self.linear_system.tau *= self.options["gamma"]
+
+                # Run the model and update the linear system
                 model.run()
                 self.linear_system.update()
 
             # Solve the linear system
             self.linear_system.factorize()
-            du = self.linear_system.solve()
+            self.linear_system.solve()
 
             # Run the linesearch
-            self.linesearch.solve(model.states, du)
+            if self.linesearch:
+                self.linesearch.solve(self.linear_system.du)
+            else:
+                self.model.states = self.model.states + self.linear_system.du
 
             phi = self._objective()
 
