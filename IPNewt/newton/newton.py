@@ -111,8 +111,8 @@ class NewtonSolver(object):
         lb_mask = self.model.lower_finite_mask
         ub_mask = self.model.upper_finite_mask
 
-        lb = self.model.lower_bounds
-        ub = self.model.upper_bounds
+        lb = self.model.lower
+        ub = self.model.upper
 
         # Initialize d_alpha to zeros
         # We only want to store and calculate d_alpha for states that
@@ -140,6 +140,14 @@ class NewtonSolver(object):
 
         if d_alpha_upper.size > 0:
             self.mu_upper *= beta * d_alpha_upper + rho
+
+        if self.mu_lower > 1e6:
+            self.mu_lower = 1e6
+            print("Warning: Maximum penalty value reached.")
+
+        if self.mu_upper > 1e6:
+            self.mu_lower = 1e6
+            print("Warning: Maximum penalty value reached.")
 
     def solve(self):
         # Get the options

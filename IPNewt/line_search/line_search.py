@@ -57,8 +57,8 @@ class LineSearch(object):
         alpha : float
             Step length
         """
-        lb = self.model.lower_bounds
-        ub = self.model.upper_bounds
+        lb = self.model.lower
+        ub = self.model.upper
 
         _enforce_bounds_vector(self.model.states, step, alpha, lb, ub)
 
@@ -74,8 +74,8 @@ class LineSearch(object):
         """
         if self.options["residual penalty"]:
             u = self.model.states
-            lb = self.model.lower_bounds
-            ub = self.model.upper_bounds
+            lb = self.model.lower
+            ub = self.model.upper
             lb_mask = self.model.lower_finite_mask
             ub_mask = self.model.upper_finite_mask
 

@@ -84,8 +84,8 @@ class LinearSystem(object):
         ub_mask = self.model.upper_finite_mask
 
         # Get the bounds from the model
-        ub = self.model.upper_bounds
-        lb = self.model.lower_bounds
+        ub = self.model.upper
+        lb = self.model.lower
 
         # Get the states from the model
         u = self.model.states
