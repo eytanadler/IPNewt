@@ -32,14 +32,14 @@ class LinearSystem(object):
         self.jacobian = None
         self.model = None
         self.residuals = None
-        self.mu = None
+        self.mu_lower = None
+        self.mu_upper = None
         self.tau = None
+        self.du = None
         self.options = copy.deepcopy(options)
 
         # Set option defaults if not already defined
-        opt_defaults = {"pseudo transient": True,
-                        "jacobian penalty": True,
-                        "residual penalty": True}
+        opt_defaults = {"pseudo transient": True, "jacobian penalty": True, "residual penalty": True}
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -62,13 +62,12 @@ class LinearSystem(object):
         # Add extra terms if the options say so
         if self.options["pseudo transient"]:
             self.update_pseudo_transient_jacobian()
-        
+
         if self.options["jacobian penalty"]:
             self.update_penalty_jacobian()
-        
+
         if self.options["residual penalty"]:
             self.update_penalty_residual()
-
 
     def update_pseudo_transient_jacobian(self):
         """
@@ -126,8 +125,8 @@ class LinearSystem(object):
 
         # Compute the penalized residual for each state that has a
         # corresponding finite bound
-        self.residuals[lb_mask] -= self.mu * np.log(u[lb_mask] - lb[lb_mask])
-        self.residuals[ub_mask] -= self.mu * np.log(ub[ub_mask] - u[ub_mask])
+        self.residuals[lb_mask] -= self.mu_lower * np.log(u[lb_mask] - lb[lb_mask])
+        self.residuals[ub_mask] -= self.mu_upper * np.log(ub[ub_mask] - u[ub_mask])
 
     def factorize(self):
         pass
@@ -158,5 +157,6 @@ class LULinearSystem(LinearSystem):
         ndarray
             The newton update vector
         """
-        b = self.model.residuals
-        return lu_solve(self.lu, b)
+        # Need to flip the residuals to negative
+        b = -self.model.residuals
+        self.du = lu_solve(self.lu, b)
