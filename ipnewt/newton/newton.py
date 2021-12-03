@@ -210,7 +210,7 @@ class NewtonSolver(object):
             self._iter_count += 1
 
             # Print the solver info
-            print(f"| NL Newton: {self._iter_count} {phi}")
+            print(f"| NL Newton: {self._iter_count} {phi} {phi/phi0}")
 
             # Check the convergence tolerances
             if phi < atol:

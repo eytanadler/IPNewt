@@ -19,10 +19,10 @@ import numpy as np
 # ==============================================================================
 from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell
 
-prob = NewtonSolver(options={"maxiter": 100, "tau": 100.})
+prob = NewtonSolver(options={"maxiter": 100, "tau": 100.0})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
-prob.linesearch = AdaptiveLineSearch()
+prob.linesearch = AdaptiveLineSearch(options={"alpha max": 3.0})
 
 prob.setup()
 prob.solve()
