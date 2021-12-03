@@ -72,6 +72,8 @@ class NewtonSolver(object):
             self.linear_system.mu_upper = self.options["mu"]
             self.linesearch.mu_lower = self.options["mu"]
             self.linesearch.mu_upper = self.options["mu"]
+            self.mu_lower = self.options["mu"]
+            self.mu_upper = self.options["mu"]
 
         # Set the initial time step for the linear system
         if self.options["pseudo transient"]:
@@ -143,11 +145,11 @@ class NewtonSolver(object):
         if d_alpha_upper.size > 0:
             self.mu_upper *= beta * d_alpha_upper + rho
 
-        if self.mu_lower > 1e6:
+        if np.any(self.mu_lower > 1e6):
             self.mu_lower = 1e6
             print("Warning: Maximum penalty value reached.")
 
-        if self.mu_upper > 1e6:
+        if np.any(self.mu_upper > 1e6):
             self.mu_lower = 1e6
             print("Warning: Maximum penalty value reached.")
 
