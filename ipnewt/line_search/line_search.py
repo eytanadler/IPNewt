@@ -36,7 +36,7 @@ class LineSearch(object):
         self.options = copy.deepcopy(options)
 
         # Set options defaults
-        opt_defaults = {"alpha": 1.0, "maxiter": 3, "residual penalty": True, "alpha max": 2.0}
+        opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0}
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -144,8 +144,10 @@ class AdaptiveLineSearch(LineSearch):
         float
             Objective function value after bounds enforcement
         """
+        self._iter_count = 0
         self.alpha = self.options["alpha"]
         phi0 = self._objective()
+        print(f"    + AG LS: {self._iter_count} {phi0} {self.alpha}")
         flag = False
         if phi0 == 0.0:
             phi0 = 1.0
@@ -164,6 +166,8 @@ class AdaptiveLineSearch(LineSearch):
         self.model.run()
         phi = self._objective()
         self._iter_count += 1
+
+        print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
         if phi < self._phi0 and phi < 1.0:
             flag = True
@@ -190,12 +194,12 @@ class AdaptiveLineSearch(LineSearch):
 
         return fval0 + (1 - c1) * alpha * df_dalpha <= fval <= fval0 + c1 * alpha * df_dalpha
 
-    def _forward_track(self, du, phi, maxiter):
+    def _forward_track(self, du, phi):
         phi1 = phi
 
         alpha_max = self.options["alpha max"]
 
-        alphas = np.linspace(self.alpha, alpha_max, maxiter)
+        alphas = np.linspace(self.alpha, alpha_max, 4)
 
         for i, alpha in enumerate(alphas[1:]):
             self._update_states(alpha - alphas[i], du)
@@ -240,7 +244,7 @@ class AdaptiveLineSearch(LineSearch):
         phi, flag = self._start_solver(du)
 
         if flag:
-            self._forward_track(du, phi, self.options["maxiter"])
+            self._forward_track(du, phi)
         else:
             self._back_track(du, phi, self.options["maxiter"])
 
