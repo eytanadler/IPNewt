@@ -34,6 +34,7 @@ class LineSearch(object):
         self.mu_upper = None
         self._iter_count = 0
         self.options = copy.deepcopy(options)
+        self.data = {"data": []}
 
         # Set options defaults
         opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0}
@@ -123,13 +124,15 @@ class AdaptiveLineSearch(LineSearch):
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
 
+        self.data["options"] = self.options
+
     def _check_options(self):
         pass
 
     def setup(self):
         pass
 
-    def _start_solver(self, du):
+    def _start_solver(self, du, recorder):
         """Initial iteration of the linesearch.  This method enforces
         bounds on the first step and returns the objective function
         value.
@@ -147,6 +150,8 @@ class AdaptiveLineSearch(LineSearch):
         self._iter_count = 0
         self.alpha = self.options["alpha"]
         phi0 = self._objective()
+        recorder["atol"].append(phi0)
+        recorder["alpha"].append(self.alpha)
         print(f"    + AG LS: {self._iter_count} {phi0} {self.alpha}")
         flag = False
         if phi0 == 0.0:
@@ -166,6 +171,9 @@ class AdaptiveLineSearch(LineSearch):
         self.model.run()
         phi = self._objective()
         self._iter_count += 1
+
+        recorder["atol"].append(phi)
+        recorder["alpha"].append(self.alpha)
 
         print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
@@ -194,7 +202,7 @@ class AdaptiveLineSearch(LineSearch):
 
         return fval0 + (1 - c1) * alpha * df_dalpha <= fval <= fval0 + c1 * alpha * df_dalpha
 
-    def _forward_track(self, du, phi):
+    def _forward_track(self, du, phi, recorder):
         phi1 = phi
 
         alpha_max = self.options["alpha max"]
@@ -205,17 +213,21 @@ class AdaptiveLineSearch(LineSearch):
             self._update_states(alpha - alphas[i], du)
             phi2 = self._objective()
             self._iter_count += 1
+            recorder["atol"].append(phi2)
+            recorder["alpha"].append(alpha)
             print(f"    + AG LS: {self._iter_count} {phi2} {alpha}")
 
             if phi2 >= phi1:
                 self._iter_count += 1
                 self._update_states(alphas[i] - alpha, du)
+                recorder["atol"].append(phi1)
+                recorder["alpha"].append(alphas[i])
                 print(f"    + AG LS: {self._iter_count} {phi1} {alphas[i]}")
                 break
 
             phi1 = phi2
 
-    def _back_track(self, du, phi, maxiter):
+    def _back_track(self, du, phi, maxiter, recorder):
         rho = self.options["rho"]
 
         while self._iter_count < maxiter and (not self._stopping_criteria(phi)):
@@ -231,6 +243,9 @@ class AdaptiveLineSearch(LineSearch):
             # compute the objective
             phi = self._objective()
 
+            recorder["atol"].append(phi)
+            recorder["alpha"].append(self.alpha)
+
             print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
     def solve(self, du):
@@ -241,12 +256,15 @@ class AdaptiveLineSearch(LineSearch):
         du : array
             Newton step vector
         """
-        phi, flag = self._start_solver(du)
+        recorder = {"atol": [], "alpha": []}
+        phi, flag = self._start_solver(du, recorder)
 
         if flag:
-            self._forward_track(du, phi)
+            self._forward_track(du, phi, recorder)
         else:
-            self._back_track(du, phi, self.options["maxiter"])
+            self._back_track(du, phi, self.options["maxiter"], recorder)
+
+        self.data["data"].append(recorder)
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
