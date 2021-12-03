@@ -37,6 +37,11 @@ def contour(ax, model, xlim, ylim, **kwargs):
         Lower and upper bounds to plot contours along the x-axis.
     ylim : two-element iterable
         Lower and upper bounds to plot contours along the y-axis.
+    
+    Returns
+    -------
+    matplotlib QuadContourSet
+        Useful to make colorbar, can be ignored
     """
     # Generate a grid on which to evaluate the residual norm
     x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100),
@@ -57,10 +62,13 @@ def contour(ax, model, xlim, ylim, **kwargs):
 
             norms[i, j] = np.linalg.norm(res)
     
-    ax.contour(x, y, norms, **kwargs)
+    return ax.contour(x, y, norms, **kwargs)
 
 def bounds(ax, model, xlim, ylim, **kwargs):
     """Shade bounds on problem.
+
+    Additional keyword arguments for matplotlib's contour
+    and contourf functions can be added to this function.
 
     Parameters
     ----------
@@ -87,3 +95,21 @@ def bounds(ax, model, xlim, ylim, **kwargs):
     ax.contourf(x, y, y, levels=[model.upper[1], np.inf], **kwargs)
     ax.contour(x, y, x, levels=[model.upper[0]], **kwargs)
     ax.contour(x, y, y, levels=[model.upper[1]], **kwargs)
+
+def newton_path(ax, data, **kwargs):
+    """Plot the Newton solver's path.
+
+    Additional keyword arguments for matplotlib's plot
+    function can be added to this function.
+
+    Parameters
+    ----------
+    ax : matplotlib axis object
+        Axis on which to plot the solver path.
+    data : dict
+        NewtonSolver data attribute. The path and convergence
+        information is extracted from here.
+    """
+    states = np.array(data["states"])
+
+    ax.plot(states[:, 0], states[:, 1], '-o', **kwargs)

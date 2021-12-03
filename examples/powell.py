@@ -32,20 +32,26 @@ plt.rcParams["text.usetex"] = True
 plt.rcParams["font.size"] = 14
 
 # Set up problem
-prob = NewtonSolver(options={"maxiter": 100, "tau": 100.0})
+prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 3.0})
+
+# Set the initial state values
+prob.model.states = np.array([14.9, 14.9])
 
 # Run the problem
 prob.setup()
 prob.solve()
 
 # Plot the results
-plt.figure()
-viz2D.contour(plt.gca(), prob.model, [-11, 16], [-11, 16], levels=100)
-viz2D.bounds(plt.gca(), prob.model, [-11, 16], [-11, 16], colors='white', alpha=0.5, zorder=2, linestyles='solid')
-plt.gca().set_aspect("equal")
+plt.figure(figsize=[12, 10])
+xlim = [-11, 16]
+ylim = [-11, 16]
+c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, cmap='viridis')
+plt.colorbar(c)
+viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors='white', alpha=0.5, zorder=2, linestyles='solid')
+viz2D.newton_path(plt.gca(), prob.data, c='white')
 plt.xlabel(r"$x_1$")
 plt.ylabel(r"$x_2$")
 plt.show()
