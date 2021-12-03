@@ -85,16 +85,20 @@ def bounds(ax, model, xlim, ylim, **kwargs):
                        indexing='ij')
 
     # Plot lower bounds
-    ax.contourf(x, y, x, levels=[-np.inf, model.lower[0]], **kwargs)
-    ax.contourf(x, y, y, levels=[-np.inf, model.lower[1]], **kwargs)
-    ax.contour(x, y, x, levels=[model.lower[0]], **kwargs)
-    ax.contour(x, y, y, levels=[model.lower[1]], **kwargs)
+    if np.isfinite(model.lower[0]):
+        ax.contourf(x, y, x, levels=[-np.inf, model.lower[0]], **kwargs)
+        ax.contour(x, y, x, levels=[model.lower[0]], **kwargs)
+    if np.isfinite(model.lower[1]):
+        ax.contourf(x, y, y, levels=[-np.inf, model.lower[1]], **kwargs)
+        ax.contour(x, y, y, levels=[model.lower[1]], **kwargs)
     
     # Plot upper bounds
-    ax.contourf(x, y, x, levels=[model.upper[0], np.inf], **kwargs)
-    ax.contourf(x, y, y, levels=[model.upper[1], np.inf], **kwargs)
-    ax.contour(x, y, x, levels=[model.upper[0]], **kwargs)
-    ax.contour(x, y, y, levels=[model.upper[1]], **kwargs)
+    if np.isfinite(model.upper[0]):
+        ax.contourf(x, y, x, levels=[model.upper[0], np.inf], **kwargs)
+        ax.contour(x, y, x, levels=[model.upper[0]], **kwargs)
+    if np.isfinite(model.upper[1]):
+        ax.contourf(x, y, y, levels=[model.upper[1], np.inf], **kwargs)
+        ax.contour(x, y, y, levels=[model.upper[1]], **kwargs)
 
 def newton_path(ax, data, **kwargs):
     """Plot the Newton solver's path.
@@ -111,5 +115,4 @@ def newton_path(ax, data, **kwargs):
         information is extracted from here.
     """
     states = np.array(data["states"])
-
     ax.plot(states[:, 0], states[:, 1], '-o', **kwargs)
