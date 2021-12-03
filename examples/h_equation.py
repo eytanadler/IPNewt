@@ -48,7 +48,7 @@ ylim = [0, 16]
 c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, cmap='viridis')
 plt.colorbar(c)
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors='white', alpha=0.5, zorder=2, linestyles='solid')
-# viz2D.newton_path(plt.gca(), prob.data, c='white')
+viz2D.newton_path(plt.gca(), prob.data, c='white')
 plt.xlabel(r"$x_1$")
 plt.ylabel(r"$x_2$")
 plt.show()
