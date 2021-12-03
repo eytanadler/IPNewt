@@ -1,5 +1,5 @@
-from line_search.line_search import LineSearch
-from linear.linear_system import LULinearSystem
-from model.model import Model
-from newton.newton import NewtonSolver
-import test_problems
+from IPNewt.line_search.line_search import LineSearch
+from IPNewt.linear.linear_system import LULinearSystem
+from IPNewt.model.model import Model
+from IPNewt.newton.newton import NewtonSolver
+import IPNewt.test_problems as test_problems
