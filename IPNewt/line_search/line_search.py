@@ -25,6 +25,7 @@ class LineSearch(object):
         """
         Valid Linesearch Options:
             "alpha": float (default=1.0), initial lineserach step length
+            "alpha max: float(default=2.0), initial max linesearch step length for forward tracking mode
             "maxiter": int (default=3), maximum linesearch iterations
             "residual penalty": True (default), add logarithmic penalty to residual vector
         """
@@ -35,7 +36,7 @@ class LineSearch(object):
         self.options = copy.deepcopy(options)
 
         # Set options defaults
-        opt_defaults = {"alpha": 1.0, "maxiter": 3, "residual penalty": True}
+        opt_defaults = {"alpha": 1.0, "maxiter": 3, "residual penalty": True, "alpha max": 2.0}
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -103,7 +104,7 @@ class LineSearch(object):
         pass
 
 
-class BacktrackingLineSearch(LineSearch):
+class AdaptiveLineSearch(LineSearch):
     def __init__(self, options={}):
         """
             Valid Backtracking Linesearch Options:
@@ -144,6 +145,7 @@ class BacktrackingLineSearch(LineSearch):
             Objective function value after bounds enforcement
         """
         phi0 = self._objective()
+        flag = False
         if phi0 == 0.0:
             phi0 = 1.0
 
@@ -162,7 +164,10 @@ class BacktrackingLineSearch(LineSearch):
         phi = self._objective()
         self._iter_count += 1
 
-        return phi
+        if phi < self._phi0 and phi < 1.0:
+            flag = True
+
+        return phi, flag
 
     def _stopping_criteria(self, fval):
         """Armijo-Goldstein criteria for terminating the linesearch
@@ -184,18 +189,29 @@ class BacktrackingLineSearch(LineSearch):
 
         return fval0 + (1 - c1) * alpha * df_dalpha <= fval <= fval0 + c1 * alpha * df_dalpha
 
-    def solve(self, du):
-        """Solve method for the linesearch
+    def _forward_track(self, du, phi, maxiter):
+        phi1 = phi
 
-        Parameters
-        ----------
-        du : array
-            Newton step vector
-        """
-        maxiter = self.options["maxiter"]
+        alpha_max = self.options["alpha max"]
+
+        alphas = np.linspace(self.alpha, alpha_max, maxiter)
+
+        for i, alpha in enumerate(alphas[1:]):
+            self._update_states(alpha - alphas[i], du)
+            phi2 = self._objective()
+            self._iter_count += 1
+            print(f"    + AG LS: {self._iter_count} {phi2} {alpha}")
+
+            if phi2 >= phi1:
+                self._iter_count += 1
+                self._update_states(alphas[i] - alpha, du)
+                print(f"    + AG LS: {self._iter_count} {phi1} {alphas[i]}")
+                break
+
+            phi1 = phi2
+
+    def _back_track(self, du, phi, maxiter):
         rho = self.options["rho"]
-
-        phi = self._start_solver(du)
 
         while self._iter_count < maxiter and (not self._stopping_criteria(phi)):
             # Geometrically decrease the step length
@@ -211,6 +227,21 @@ class BacktrackingLineSearch(LineSearch):
             phi = self._objective()
 
             print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
+
+    def solve(self, du):
+        """Solve method for the linesearch
+
+        Parameters
+        ----------
+        du : array
+            Newton step vector
+        """
+        phi, flag = self._start_solver(du)
+
+        if flag:
+            self._forward_track(du, phi, self.options["maxiter"])
+        else:
+            self._back_track(du, phi, self.options["maxiter"])
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
