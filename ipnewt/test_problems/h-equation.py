@@ -13,6 +13,7 @@
 # External Python modules
 # ==============================================================================
 import numpy as np
+from copy import copy
 
 # ==============================================================================
 # Extension modules
@@ -33,13 +34,16 @@ class HEquation(Model):
         Lower bound on all the states (default 0)
     upper : float
         Upper bound on all the states (default infinity)
+    c : float
+        Constant in the H-equation between 0 and 1 (default 0.5)
     """
     def __init__(self, options={}):
         # Set options defaults
         opt_defaults = {
             "n_states": 2,
             "lower": 0.,
-            "upper": np.inf
+            "upper": np.inf,
+            "c": 0.5
         }
         for opt in opt_defaults.keys():
             if opt not in options.keys():
@@ -53,15 +57,25 @@ class HEquation(Model):
         """
         Compute the residuals of the nonlinear equations in the model.
         """
-        res[0] = 1e4 * u[0] * u[1] - 1
-        res[1] = np.exp(-u[0]) + np.exp(-u[1]) - 1.0001
+        n = self.options["n_states"]
+        c = self.options["c"]
+
+        mu = (np.arange(n) - 0.5) / n
+        for i in range(n):
+            res[i] = u[i] - 1 / (1 - c / (2*n) * np.sum( mu[i]*u / (mu[i] + mu) ))
 
     def compute_jacobian(self, u, J):
         """
         Compute the residuals of the nonlinear equations in the model.
         """
-        J[0, 0] = 1e4 * u[1]  # dr0/du0
-        J[0, 1] = 1e4 * u[0]  # dr0/du1
+        n = self.options["n_states"]
+        c = self.options["c"]
 
-        J[1, 0] = -np.exp(-u[0])  # dr1/du0
-        J[1, 1] = -np.exp(-u[1])  # dr1/du1
+        mu = (np.arange(n) - 0.5) / n
+        for i in range(n):
+            denom = 1 - c / (2*n) * np.sum( mu[i]*u / (mu[i] + mu) )
+            for j in range(n):
+                J[i, j] = copy(denom)**-2
+                J[i, j] *= -c / (2*n) * mu[i] / (mu[i] + mu[j])
+                if i == j:
+                    J[i, j] += 1
