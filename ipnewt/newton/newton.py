@@ -43,6 +43,7 @@ class NewtonSolver(object):
         self.linear_system = None
         self.mu_lower = None
         self.mu_upper = None
+        self.data = {"atol": [], "rtol": [], "mu lower": [], "mu upper": [], "tau": [], "states": []}
 
         # Set options defaults
         opt_defaults = {
@@ -61,6 +62,8 @@ class NewtonSolver(object):
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
+
+        self.data["options"] = self.options
 
     def _check_options(self):
         pass
@@ -91,6 +94,9 @@ class NewtonSolver(object):
         if self.linesearch:
             self.linesearch.options["residual penalty"] = self.options["interior penalty"]
             self.linesearch.model = self.model
+
+        self.data["lower bounds"] = self.model.lower
+        self.data["upper bounds"] = self.model.upper
 
     def _start_solver(self):
         """
@@ -168,6 +174,12 @@ class NewtonSolver(object):
 
         # Compute the initial residual norm
         phi0 = self._objective()
+        self.data["atol"].append(phi0)
+        self.data["rtol"].append(1.0)
+        self.data["mu lower"].append(self.mu_lower)
+        self.data["mu upper"].append(self.mu_upper)
+        self.data["tau"].append(self.linear_system.tau)
+        self.data["states"].append(self.model.states)
 
         # Start the solver by running the model and updating the
         # Jacobian
@@ -220,6 +232,13 @@ class NewtonSolver(object):
             if phi / phi0 < rtol:
                 converged = True
                 break
+
+            self.data["atol"].append(phi)
+            self.data["rtol"].append(phi / phi0)
+            self.data["mu lower"].append(self.mu_lower)
+            self.data["mu upper"].append(self.mu_upper)
+            self.data["tau"].append(self.linear_system.tau)
+            self.data["states"].append(self.model.states)
 
         if converged:
             print(f"| NL Newton converged in {self._iter_count} iterations")
