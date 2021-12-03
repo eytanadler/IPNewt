@@ -127,7 +127,7 @@ class AdaptiveLineSearch(LineSearch):
         pass
 
     def setup(self):
-        self.alpha = self.options["alpha"]
+        pass
 
     def _start_solver(self, du):
         """Initial iteration of the linesearch.  This method enforces
@@ -144,6 +144,7 @@ class AdaptiveLineSearch(LineSearch):
         float
             Objective function value after bounds enforcement
         """
+        self.alpha = self.options["alpha"]
         phi0 = self._objective()
         flag = False
         if phi0 == 0.0:
@@ -275,11 +276,11 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
 
     # Find the largest amount a bound is violated
     # where positive means a bound is violated - i.e. the required d_alpha.
-    du_arr = du.asarray()
+    du_arr = du
     mask = du_arr != 0
     if mask.any():
         abs_du_mask = np.abs(du_arr[mask])
-        u_mask = u.asarray()[mask]
+        u_mask = u[mask]
 
         # Check lower bound
         if lower_bounds is not None:
@@ -301,7 +302,7 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
         # Therefore 0 <= d_alpha <= alpha.
 
         # We first update u to reflect the required change to du.
-        u.add_scal_vec(-d_alpha, du)
+        u = u - d_alpha * du
         # At this point, we normalize d_alpha by alpha to figure out the relative
         # amount that the du vector has to be reduced, then apply the reduction.
         du *= 1 - d_alpha / alpha

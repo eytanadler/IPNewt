@@ -26,6 +26,7 @@ class NewtonSolver(object):
         Valid Newton Solver Options:
             "atol": float (default=1e-6), the absolute convergence tolerance
             "rtol": float (default=1e-99), the relative convergence tolerance
+            "maxiter": int (default=10), maximum iterations in Newton solver
             "beta": float (default=10.0), geometric penalty multiplier
             "rho": float (default=0.5), constant penalty scaling term
             "mu": float (default=1e-10), initial penalty parameter
@@ -50,6 +51,7 @@ class NewtonSolver(object):
             "residual penalty": False,
             "atol": 1e-6,
             "rtol": 1e-99,
+            "maxiter": 10,
             "beta": 10.0,
             "rho": 0.5,
             "mu": 1e-10,
@@ -169,6 +171,9 @@ class NewtonSolver(object):
         # Jacobian
         self._start_solver()
 
+        # Print the solver info
+        print(f"| NL Newton: {self._iter_count} {phi0}")
+
         while self._iter_count <= max_iter:
             # Logic for a single Newton iteration
             if self._iter_count > 0:
@@ -199,6 +204,8 @@ class NewtonSolver(object):
                 self.model.states = self.model.states + self.linear_system.du
 
             phi = self._objective()
+
+            self._iter_count += 1
 
             # Print the solver info
             print(f"| NL Newton: {self._iter_count} {phi}")

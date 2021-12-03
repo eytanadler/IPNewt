@@ -13,6 +13,7 @@
 # External Python modules
 # ==============================================================================
 import numpy as np
+import copy
 
 # ==============================================================================
 # Extension modules
@@ -20,7 +21,7 @@ import numpy as np
 
 
 class Model(object):
-    def __init__(self, n_states, lower=None, upper=None):
+    def __init__(self, n_states, lower=None, upper=None, options={}):
         """
         Initialize all attributes.
 
@@ -36,6 +37,10 @@ class Model(object):
             Upper bounds on the states. If it is a single number, all states
             will take on that upper bound. If it is an iterable, it must be
             of length n_states and the bounds will be set in that order.
+        options : dict
+            Options that could be model-specific. For example, if your model
+            wanted some constant you could define that here and access it in
+            your compute_residuals and compute_jacobian implementations.
         """
         # Error check number of states
         if not isinstance(n_states, int):
@@ -43,7 +48,7 @@ class Model(object):
         if n_states < 1:
             raise ValueError(f"Model must include at least one state (defined by n_states), not {n_states}")
 
-        self.options = {}
+        self.options = copy.deepcopy(options)
         self.n_states = n_states
         self.residuals = np.empty(n_states)
         self.states = np.ones(n_states)  # initialize all states to one
@@ -56,7 +61,7 @@ class Model(object):
             if len(lower) != n_states:
                 raise ValueError("If the lower bounds are defined as an iterable, \
                                   it must have a length of n_states")
-            self.lower = lower.copy()
+            self.lower = np.array(lower)
         else:
             self.lower = -np.inf * np.ones(n_states)
 
@@ -66,7 +71,7 @@ class Model(object):
             if len(upper) != n_states:
                 raise ValueError("If the upper bounds are defined as an iterable, \
                                   it must have a length of n_states")
-            self.upper = upper.copy()
+            self.upper = np.array(upper)
         else:
             self.upper = -np.inf * np.ones(n_states)
         

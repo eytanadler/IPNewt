@@ -96,10 +96,10 @@ class LinearSystem(object):
 
         # Only compute the derivative if finite bounds exist
         if t_lower.size > 0:
-            dp_du[lb_mask] = -self.mu / (t_lower + 1e-10)
+            dp_du[lb_mask] = -self.mu_lower / (t_lower + 1e-10)
 
         if t_upper.size > 0:
-            dp_du[ub_mask] = -self.mu / (t_upper + 1e-10)
+            dp_du[ub_mask] = -self.mu_upper / (t_upper + 1e-10)
 
         # Add the penalty jacobian to the problem jacobian
         self.jacobian += np.diag(dp_du)
