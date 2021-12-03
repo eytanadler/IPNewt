@@ -47,10 +47,6 @@ class LinearSystem(object):
     def _check_options(self):
         pass
 
-    def setup(self):
-        # Any setup operations go here
-        pass
-
     def update(self):
         """
         Update the Jacobian and residuals with the model's Jacobian and residuals.
