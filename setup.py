@@ -34,5 +34,5 @@ setup(
     license="MIT License",
     packages=["ipnewt", "ipnewt.newton", "ipnewt.linear", "ipnewt.line_search", "ipnewt.model"],
     python_requires=">=3.6",
-    install_requires=["numpy", "scipy",],
+    install_requires=["numpy", "scipy", "matplotlib"],
 )
