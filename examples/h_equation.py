@@ -37,17 +37,21 @@ prob.model = HEquation(options={"n_states": 2})
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 3.0})
 
+prob.model.states = np.array([9., 4.])
+
 # Run the problem
 prob.setup()
 prob.solve()
 
+print(f"Solution at {prob.model.states} with residuals of {prob.model.residuals}")
+
 # Plot the results
 plt.figure(figsize=[12, 10])
-xlim = [0, 5]
-ylim = [0, 5]
-c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, cmap='viridis')
+xlim = [0, 10]
+ylim = [0, 15]
+c = viz2D.contour(plt.gca(), prob.model, xlim, ylim,
+                  levels=10**np.linspace(0, 3.176, 100) - 1, cmap='viridis')
 plt.colorbar(c)
-viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors='white', alpha=0.5, zorder=2, linestyles='solid')
 viz2D.newton_path(plt.gca(), prob.data, c='white')
 plt.xlabel(r"$x_1$")
 plt.ylabel(r"$x_2$")

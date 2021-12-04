@@ -92,7 +92,7 @@ class LinearSystem(object):
         # Compute the denominator of the penalty derivative terms
         # associated with the lower and upper bounds
         t_lower = u[lb_mask] - lb[lb_mask]
-        t_upper = ub[ub_mask] - u[lb_mask]
+        t_upper = ub[ub_mask] - u[ub_mask]
 
         # Only compute the derivative if finite bounds exist
         if t_lower.size > 0:
