@@ -49,29 +49,25 @@ def check_model_derivatives(model, use_complex=True, step_size=None, print_resul
             step_size = 1e-100
     
     n_states = model.n_states
+    dtype = float
     if use_complex:
-        u = np.array(model.states, dtype=complex)
-    else:
-        u = np.copy(model.states)
+        dtype = complex
+    u = np.array(model.states, dtype=dtype)
 
     # Get the Jacobian computed by the model
-    J_model = np.zeros((n_states, n_states))
+    J_model = np.zeros((n_states, n_states), dtype=dtype)
     model.compute_jacobian(u, J_model)
 
     # Build the Jacobian to check the model
     J_check = np.zeros((n_states, n_states))
-    if use_complex:
-        res_pert = np.zeros(n_states, dtype=complex)
-    else:
-        res_pert = np.zeros(n_states)
-    res_orig = np.zeros(n_states)
+    res_pert = np.zeros(n_states, dtype=dtype)
+    res_orig = np.zeros(n_states, dtype=dtype)
     model.compute_residuals(u, res_orig)
 
     for i in range(n_states):
         # Perturb the ith state
         if use_complex:
             u[i] += step_size * 1j
-            print(u[i])
         else:
             u[i] += step_size
         

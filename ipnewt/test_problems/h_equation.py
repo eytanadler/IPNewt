@@ -60,7 +60,7 @@ class HEquation(Model):
         n = self.options["n_states"]
         c = self.options["c"]
 
-        mu = (np.arange(n) - 0.5) / n
+        mu = (np.arange(1, n+1) - 0.5) / n
         for i in range(n):
             res[i] = u[i] - 1 / (1 - c / (2*n) * np.sum( mu[i]*u / (mu[i] + mu) ))
 
@@ -71,7 +71,7 @@ class HEquation(Model):
         n = self.options["n_states"]
         c = self.options["c"]
 
-        mu = (np.arange(n) - 0.5) / n
+        mu = (np.arange(1, n+1) - 0.5) / n
         for i in range(n):
             denom = 1 - c / (2*n) * np.sum( mu[i]*u / (mu[i] + mu) )
             for j in range(n):

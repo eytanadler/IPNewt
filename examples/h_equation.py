@@ -43,8 +43,8 @@ prob.solve()
 
 # Plot the results
 plt.figure(figsize=[12, 10])
-xlim = [0, 16]
-ylim = [0, 16]
+xlim = [0, 5]
+ylim = [0, 5]
 c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, cmap='viridis')
 plt.colorbar(c)
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors='white', alpha=0.5, zorder=2, linestyles='solid')
