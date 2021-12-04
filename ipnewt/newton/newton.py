@@ -115,8 +115,10 @@ class NewtonSolver(object):
         beta = self.options["beta"]
         rho = self.options["rho"]
 
-        u = self.model.states
-        du = self.linear_system.du
+        # Use u and du to compute the full step pure Newton wanted to take
+        u = self.data["states"][-2]
+        du = self.du_newton  # use the step from Newton as opposed to with the
+                             # bounds enforcement handed by the linesearch
 
         lb_mask = self.model.lower_finite_mask
         ub_mask = self.model.upper_finite_mask
@@ -131,8 +133,8 @@ class NewtonSolver(object):
         d_alpha_upper = np.zeros(np.count_nonzero(ub_mask))
 
         # Compute d_alpha for all states with finite bounds
-        t_lower = lb[lb_mask] - u[lb_mask]
-        t_upper = u[ub_mask] - ub[ub_mask]
+        t_lower = lb[lb_mask] - (u[lb_mask] + du[lb_mask])
+        t_upper = (u[ub_mask] + du[ub_mask]) - ub[ub_mask]
 
         # d_alpha > 0 means that the state has violated a bound
         # d_alpha < 0 means that the state has not violated a bound
@@ -191,7 +193,7 @@ class NewtonSolver(object):
         while self._iter_count <= max_iter:
             # Logic for a single Newton iteration
             if self._iter_count > 0:
-                # If interior penalty method is turned on
+                # If interior penalty method is turned on, update the penalty parameters
                 if self.options["interior penalty"]:
                     self._update_penalty()
                     self.linear_system.mu_lower = self.mu_lower
@@ -210,6 +212,11 @@ class NewtonSolver(object):
             # Solve the linear system
             self.linear_system.factorize()
             self.linear_system.solve()
+
+            # If the adaptive interior penalty is used, need to store the step
+            # from the Newton solver to use when computing the penalty update
+            if self.options["interior penalty"]:
+                self.du_newton = np.copy(self.linear_system.du)
 
             # Run the linesearch
             if self.linesearch:
