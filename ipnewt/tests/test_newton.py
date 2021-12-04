@@ -40,8 +40,6 @@ class TestNewton(unittest.TestCase):
 
         states_hist = np.array(prob.data["states"])
 
-        print(states_hist[:, 0])
-
         # Check that the bounds are never violated during the solve
         self.assertTrue(np.all(-10 <= states_hist[:, 0]))
         self.assertTrue(np.all(-10 <= states_hist[:, 1]))

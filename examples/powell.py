@@ -44,6 +44,8 @@ prob.model.states = np.array([14.9, 14.9])
 prob.setup()
 prob.solve()
 
+print(f"Solution at {prob.model.states} with residuals of {prob.model.residuals}")
+
 # Plot the results
 plt.figure(figsize=[12, 10])
 xlim = [-11, 16]

@@ -58,11 +58,16 @@ class LineSearch(object):
             Newton step vector
         alpha : float
             Step length
+        
+        Returns
+        -------
+        bool
+            True if the step was limited by the bounds enforcement, False otherwise
         """
         lb = self.model.lower
         ub = self.model.upper
 
-        _enforce_bounds_vector(self.model.states, step, alpha, lb, ub)
+        return _enforce_bounds_vector(self.model.states, step, alpha, lb, ub)
 
     def _objective(self):
         """Computes the objective function for the linesearch.  If the
@@ -87,10 +92,10 @@ class LineSearch(object):
             t_upper = ub[ub_mask] - u[ub_mask]
 
             if t_lower.size > 0:
-                penalty[lb_mask] = np.sum(self.mu_lower * -np.log(t_lower + 1e-10))
+                penalty[lb_mask] += np.sum(self.mu_lower * -np.log(t_lower + 1e-10))
 
             if t_upper.size > 0:
-                penalty[ub_mask] = np.sum(self.mu_upper * -np.log(t_upper + 1e-10))
+                penalty[ub_mask] += np.sum(self.mu_upper * -np.log(t_upper + 1e-10))
 
             residuals = self.model.residuals + penalty
         else:
@@ -153,7 +158,7 @@ class AdaptiveLineSearch(LineSearch):
         recorder["atol"].append(phi0)
         recorder["alpha"].append(self.alpha)
         print(f"    + AG LS: {self._iter_count} {phi0} {self.alpha}")
-        flag = False
+        use_fwd_track = False
         if phi0 == 0.0:
             phi0 = 1.0
 
@@ -166,7 +171,7 @@ class AdaptiveLineSearch(LineSearch):
 
         self._update_states(self.alpha, du)
 
-        self._enforce_bounds(du, self.alpha)
+        step_limited = self._enforce_bounds(du, self.alpha)
 
         self.model.run()
         phi = self._objective()
@@ -178,9 +183,13 @@ class AdaptiveLineSearch(LineSearch):
         print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
         if phi < self._phi0 and phi < 1.0:
-            flag = True
+            use_fwd_track = True
+        
+        # Prevent forward tracking linesearch when the step goes right up to a bound
+        if step_limited:
+            use_fwd_track = False
 
-        return phi, flag
+        return phi, use_fwd_track
 
     def _stopping_criteria(self, fval):
         """Armijo-Goldstein criteria for terminating the linesearch
@@ -206,6 +215,13 @@ class AdaptiveLineSearch(LineSearch):
         phi1 = phi
 
         alpha_max = self.options["alpha max"]
+
+        # Decrease alpha max to go exactly to the bounds if it would otherwise violate them
+        # TODO: this is not the smartest way of doing this, make it better bro
+        du_bounded = np.copy(du)
+        _enforce_bounds_vector(self.model.states + alpha_max * du, du_bounded, alpha_max,
+                               self.model.lower, self.model.upper)
+        alpha_max *= np.linalg.norm(du_bounded) / np.linalg.norm(du)
 
         alphas = np.linspace(self.alpha, alpha_max, 4)
 
@@ -257,9 +273,9 @@ class AdaptiveLineSearch(LineSearch):
             Newton step vector
         """
         recorder = {"atol": [], "alpha": []}
-        phi, flag = self._start_solver(du, recorder)
+        phi, use_fwd_track = self._start_solver(du, recorder)
 
-        if flag:
+        if use_fwd_track:
             self._forward_track(du, phi, recorder)
         else:
             self._back_track(du, phi, self.options["maxiter"], recorder)
@@ -287,6 +303,11 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
         Lower bounds array.
     upper_bounds : array
         Upper bounds array.
+    
+    Returns
+    -------
+    bool
+        True if the step was limited by the bounds enforcement, False otherwise
     """
     # The assumption is that alpha * du has been added to self (i.e., u)
     # just prior to this method being called. We are currently in the
@@ -324,7 +345,11 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
         # Therefore 0 <= d_alpha <= alpha.
 
         # We first update u to reflect the required change to du.
-        u = u - d_alpha * du
+        u -= d_alpha * du
         # At this point, we normalize d_alpha by alpha to figure out the relative
         # amount that the du vector has to be reduced, then apply the reduction.
         du *= 1 - d_alpha / alpha
+
+        return True
+
+    return False
