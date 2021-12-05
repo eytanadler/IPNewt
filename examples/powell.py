@@ -34,7 +34,7 @@ plt.rcParams["font.size"] = 14
 plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbright}"
 
 # Set up problem
-prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01})
+prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01, "mu": 1000.0})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1000000.0})
@@ -59,6 +59,13 @@ viz2D.newton_path(plt.gca(), prob.data, c="white")
 plt.xlabel(r"$x_1$")
 plt.ylabel(r"$x_2$")
 plt.show()
+
+# Plot the penalty contour
+plt.figure(figsize=[12, 10])
+viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, colors="grey")
+viz2D.penalty_contour(plt.gca(), prob.data, prob.model, xlim, ylim, 1, levels=100, cmap="viridis")
+viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
+plt.savefig("/Users/andrewlamkin/Downloads/contour_compare.pdf")
 
 # Plot the convergence
 plt.figure(figsize=[12, 10])
