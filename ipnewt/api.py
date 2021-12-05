@@ -5,4 +5,5 @@ from ipnewt.newton.newton import NewtonSolver
 from ipnewt.test_problems.powell import Powell
 from ipnewt.test_problems.h_equation import HEquation
 import ipnewt.visualization.two_dim as viz2D
+import ipnewt.visualization.newton_hist as vizNewt
 import ipnewt.tests.utils as test_utils
