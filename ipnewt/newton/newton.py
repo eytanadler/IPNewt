@@ -118,7 +118,7 @@ class NewtonSolver(object):
         # Use u and du to compute the full step pure Newton wanted to take
         u = self.data["states"][-2]
         du = self.du_newton  # use the step from Newton as opposed to with the
-                             # bounds enforcement handed by the linesearch
+        # bounds enforcement handed by the linesearch
 
         lb_mask = self.model.lower_finite_mask
         ub_mask = self.model.upper_finite_mask
