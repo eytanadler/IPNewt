@@ -15,10 +15,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import niceplots
+import os
 
 # ==============================================================================
 # Extension modules
 # ==============================================================================
+import ipnewt
 from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell, viz2D, vizNewt
 
 # ==============================================================================
@@ -32,6 +34,8 @@ niceplots.setRCParams(dark_mode=dark_mode, set_dark_background=dark_mode)
 plt.rcParams["text.usetex"] = True
 plt.rcParams["font.size"] = 14
 plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbright}"
+
+save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], 'examples', 'plots')
 
 # Set up problem
 prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01, "mu": 1000.0})
@@ -58,30 +62,22 @@ viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorde
 viz2D.newton_path(plt.gca(), prob.data, c="white")
 plt.xlabel(r"$x_1$")
 plt.ylabel(r"$x_2$")
-plt.show()
+plt.savefig(os.path.join(save_dir, "powell_solver_path.pdf"))
 
 # Plot the penalty contour
 plt.figure(figsize=[12, 10])
 viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, colors="grey")
 viz2D.penalty_contour(plt.gca(), prob.data, prob.model, xlim, ylim, 1, levels=100, cmap="viridis")
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
-plt.savefig("/Users/andrewlamkin/Downloads/contour_compare.pdf")
+plt.savefig(os.path.join(save_dir, "powell_penalty_contours.pdf"))
 
 # Plot the convergence
-plt.figure(figsize=[12, 10])
-vizNewt.convergence(plt.gca(), prob.data, "atol", color=niceColors["Blue"], marker="o")
-plt.show()
+fig, axs = plt.subplots(4, 1, figsize=[10, 15])
+vizNewt.convergence(axs[0], prob.data, "atol", color=niceColors["Blue"], marker="o")
+vizNewt.convergence(axs[1], prob.data, "rtol", color=niceColors["Red"], marker="o")
+vizNewt.pseudo_time_step(axs[2], prob.data, marker="o", color=niceColors["Green"])
+vizNewt.penalty_parameter(axs[3], prob.data, "mu upper", 1, color=niceColors["Yellow"], marker="o")
 
-plt.figure(figsize=[12, 10])
-vizNewt.convergence(plt.gca(), prob.data, "atol", color=niceColors["Red"], marker="o")
-plt.show()
+plt.savefig(os.path.join(save_dir, "powell_var_hist.pdf"))
 
-# Plot the pseudo-time step
-plt.figure(figsize=[12, 10])
-vizNewt.pseudo_time_step(plt.gca(), prob.data, marker="o", color=niceColors["Green"])
-plt.show()
-
-# Plot the penalty
-plt.figure(figsize=[12, 11])
-vizNewt.penalty_parameter(plt.gca(), prob.data, "mu upper", 1, color=niceColors["Yellow"], marker="o")
 plt.show()
