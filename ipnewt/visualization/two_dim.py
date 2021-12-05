@@ -37,15 +37,14 @@ def contour(ax, model, xlim, ylim, **kwargs):
         Lower and upper bounds to plot contours along the x-axis.
     ylim : two-element iterable
         Lower and upper bounds to plot contours along the y-axis.
-    
+
     Returns
     -------
     matplotlib QuadContourSet
         Useful to make colorbar, can be ignored
     """
     # Generate a grid on which to evaluate the residual norm
-    x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100),
-                       indexing='xy')
+    x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100), indexing="xy")
     norms = np.zeros(x.shape)
 
     # States and residuals
@@ -61,8 +60,9 @@ def contour(ax, model, xlim, ylim, **kwargs):
             model.compute_residuals(u, res)
 
             norms[i, j] = np.linalg.norm(res)
-    
+
     return ax.contour(x, y, norms, **kwargs)
+
 
 def bounds(ax, model, xlim, ylim, **kwargs):
     """Shade bounds on problem.
@@ -81,8 +81,7 @@ def bounds(ax, model, xlim, ylim, **kwargs):
     ylim : two-element iterable
         Lower and upper bounds to plot contours along the y-axis.
     """
-    x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100),
-                       indexing='ij')
+    x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100), indexing="ij")
 
     # Plot lower bounds
     if np.isfinite(model.lower[0]):
@@ -91,7 +90,7 @@ def bounds(ax, model, xlim, ylim, **kwargs):
     if np.isfinite(model.lower[1]):
         ax.contourf(x, y, y, levels=[-np.inf, model.lower[1]], **kwargs)
         ax.contour(x, y, y, levels=[model.lower[1]], **kwargs)
-    
+
     # Plot upper bounds
     if np.isfinite(model.upper[0]):
         ax.contourf(x, y, x, levels=[model.upper[0], np.inf], **kwargs)
@@ -99,6 +98,7 @@ def bounds(ax, model, xlim, ylim, **kwargs):
     if np.isfinite(model.upper[1]):
         ax.contourf(x, y, y, levels=[model.upper[1], np.inf], **kwargs)
         ax.contour(x, y, y, levels=[model.upper[1]], **kwargs)
+
 
 def newton_path(ax, data, **kwargs):
     """Plot the Newton solver's path.
@@ -115,4 +115,4 @@ def newton_path(ax, data, **kwargs):
         information is extracted from here.
     """
     states = np.array(data["states"])
-    ax.plot(states[:, 0], states[:, 1], '-o', **kwargs)
+    ax.plot(states[:, 0], states[:, 1], "-o", **kwargs)
