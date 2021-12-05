@@ -155,11 +155,11 @@ class NewtonSolver(object):
             self.mu_upper *= beta * d_alpha_upper + rho
 
         if np.any(self.mu_lower > 1e6):
-            self.mu_lower = 1e6
+            self.mu_lower[:] = 1e6
             print("Warning: Maximum penalty value reached.")
 
         if np.any(self.mu_upper > 1e6):
-            self.mu_lower = 1e6
+            self.mu_lower[:] = 1e6
             print("Warning: Maximum penalty value reached.")
 
     def solve(self):

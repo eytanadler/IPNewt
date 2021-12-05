@@ -19,7 +19,7 @@ import numpy as np
 # ==============================================================================
 
 
-def contour(ax, model, xlim, ylim, **kwargs):
+def contour(ax, model, xlim, ylim, n_pts=100, **kwargs):
     """Plot the contours of a 2D problem.
 
     Additional keyword arguments for matplotlib's contour
@@ -36,6 +36,8 @@ def contour(ax, model, xlim, ylim, **kwargs):
         Lower and upper bounds to plot contours along the x-axis.
     ylim : two-element iterable
         Lower and upper bounds to plot contours along the y-axis.
+    n_pts : int, optional
+        Number of points in each direction at which to evaluate the plotted function.
 
     Returns
     -------
@@ -43,7 +45,7 @@ def contour(ax, model, xlim, ylim, **kwargs):
         Useful to make colorbar, can be ignored
     """
     # Generate a grid on which to evaluate the residual norm
-    x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100), indexing="xy")
+    x, y = np.meshgrid(np.linspace(*xlim, n_pts), np.linspace(*ylim, n_pts), indexing="xy")
     norms = np.zeros(x.shape)
 
     # States and residuals
@@ -63,7 +65,7 @@ def contour(ax, model, xlim, ylim, **kwargs):
     return ax.contour(x, y, norms, **kwargs)
 
 
-def penalty_contour(ax, data, model, xlim, ylim, idx, **kwargs):
+def penalty_contour(ax, data, model, xlim, ylim, idx, n_pts=100, **kwargs):
     """Plot the contours of a 2D problem with an interior penalty
     contribution.
 
@@ -84,8 +86,10 @@ def penalty_contour(ax, data, model, xlim, ylim, idx, **kwargs):
         Lower and upper bounds to plot contours along the x-axis.
     ylim : two-element iterable
         Lower and upper bounds to plot contours along the y-axis.
-    idx: int
+    idx : int
         Iteration index for plotting the penalty contour.
+    n_pts : int, optional
+        Number of points in each direction at which to evaluate the plotted function.
 
     Returns
     -------
@@ -93,7 +97,7 @@ def penalty_contour(ax, data, model, xlim, ylim, idx, **kwargs):
         Useful to make colorbar, can be ignored
     """
     # Generate a grid on which to evaluate the residual norm
-    x, y = np.meshgrid(np.linspace(*xlim, 100), np.linspace(*ylim, 100), indexing="xy")
+    x, y = np.meshgrid(np.linspace(*xlim, n_pts), np.linspace(*ylim, n_pts), indexing="xy")
     norms = np.zeros(x.shape)
 
     # States and residuals

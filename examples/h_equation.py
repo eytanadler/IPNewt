@@ -53,6 +53,6 @@ c = viz2D.contour(plt.gca(), prob.model, xlim, ylim,
                   levels=10**np.linspace(0, 3.176, 100) - 1, cmap='viridis')
 plt.colorbar(c)
 viz2D.newton_path(plt.gca(), prob.data, c='white')
-plt.xlabel(r"$x_1$")
-plt.ylabel(r"$x_2$")
+plt.xlabel(r"$u_1$")
+plt.ylabel(r"$u_2$")
 plt.show()

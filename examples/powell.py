@@ -38,10 +38,10 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], 'examples', 'plots')
 
 # Set up problem
-prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01, "mu": 1000.0})
+prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01, "mu": 1e5})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
-prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1000000.0})
+prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
 
 # Set the initial state values
 prob.model.states = np.array([14.9, 14.9])
@@ -56,19 +56,25 @@ print(f"Solution at {prob.model.states} with residuals of {prob.model.residuals}
 plt.figure(figsize=[12, 10])
 xlim = [-11, 16]
 ylim = [-11, 16]
-c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, cmap="viridis")
+c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, n_pts=500, levels=100, cmap="viridis")
 plt.colorbar(c)
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
 viz2D.newton_path(plt.gca(), prob.data, c="white")
-plt.xlabel(r"$x_1$")
-plt.ylabel(r"$x_2$")
+plt.xlabel(r"$u_1$")
+plt.ylabel(r"$u_2$")
 plt.savefig(os.path.join(save_dir, "powell_solver_path.pdf"))
 
 # Plot the penalty contour
 plt.figure(figsize=[12, 10])
-viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, colors="grey")
-viz2D.penalty_contour(plt.gca(), prob.data, prob.model, xlim, ylim, 1, levels=100, cmap="viridis")
+viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=100, colors="grey", n_pts=500, alpha=0.7, linewidths=0.5)
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
+viz2D.newton_path(plt.gca(), prob.data, zorder=5, c="white")
+xlim = [-9.9, 14.9]
+ylim = [-9.9, 14.9]
+c = viz2D.penalty_contour(plt.gca(), prob.data, prob.model, xlim, ylim, 1, n_pts=500, levels=100, cmap="viridis")
+plt.colorbar(c)
+plt.xlabel(r"$u_1$")
+plt.ylabel(r"$u_2$")
 plt.savefig(os.path.join(save_dir, "powell_penalty_contours.pdf"))
 
 # Plot the convergence
@@ -80,4 +86,4 @@ vizNewt.penalty_parameter(axs[3], prob.data, "mu upper", 1, color=niceColors["Ye
 
 plt.savefig(os.path.join(save_dir, "powell_var_hist.pdf"))
 
-plt.show()
+# plt.show()
