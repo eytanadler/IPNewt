@@ -70,13 +70,14 @@ class NewtonSolver(object):
 
     def setup(self):
         # Set the initial mu for the linear system and line search
+        n_states = len(self.model.states)
         if self.options["interior penalty"]:
             self.linear_system.mu_lower = self.options["mu"]
             self.linear_system.mu_upper = self.options["mu"]
             self.linesearch.mu_lower = self.options["mu"]
             self.linesearch.mu_upper = self.options["mu"]
-            self.mu_lower = self.options["mu"]
-            self.mu_upper = self.options["mu"]
+            self.mu_lower = np.full(n_states, self.options["mu"])
+            self.mu_upper = np.full(n_states, self.options["mu"])
 
         # Set the initial time step for the linear system
         if self.options["pseudo transient"]:
@@ -178,8 +179,8 @@ class NewtonSolver(object):
         phi0 = self._objective()
         self.data["atol"].append(phi0)
         self.data["rtol"].append(1.0)
-        self.data["mu lower"].append(self.mu_lower)
-        self.data["mu upper"].append(self.mu_upper)
+        self.data["mu lower"].append(self.mu_lower.copy())
+        self.data["mu upper"].append(self.mu_upper.copy())
         self.data["tau"].append(self.linear_system.tau)
         self.data["states"].append(self.model.states)
 
@@ -231,6 +232,13 @@ class NewtonSolver(object):
             # Print the solver info
             print(f"| NL Newton: {self._iter_count} {phi} {phi/phi0}")
 
+            self.data["atol"].append(phi)
+            self.data["rtol"].append(phi / phi0)
+            self.data["mu lower"].append(self.mu_lower.copy())
+            self.data["mu upper"].append(self.mu_upper.copy())
+            self.data["tau"].append(self.linear_system.tau)
+            self.data["states"].append(self.model.states)
+
             # Check the convergence tolerances
             if phi < atol:
                 converged = True
@@ -239,13 +247,6 @@ class NewtonSolver(object):
             if phi / phi0 < rtol:
                 converged = True
                 break
-
-            self.data["atol"].append(phi)
-            self.data["rtol"].append(phi / phi0)
-            self.data["mu lower"].append(self.mu_lower)
-            self.data["mu upper"].append(self.mu_upper)
-            self.data["tau"].append(self.linear_system.tau)
-            self.data["states"].append(self.model.states)
 
         if converged:
             print(f"| NL Newton converged in {self._iter_count} iterations")
