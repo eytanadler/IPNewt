@@ -58,7 +58,7 @@ class LineSearch(object):
             Newton step vector
         alpha : float
             Step length
-        
+
         Returns
         -------
         bool
@@ -184,7 +184,7 @@ class AdaptiveLineSearch(LineSearch):
 
         if phi < self._phi0 and phi < 1.0:
             use_fwd_track = True
-        
+
         # Prevent forward tracking linesearch when the step goes right up to a bound
         if step_limited:
             use_fwd_track = False
@@ -219,14 +219,16 @@ class AdaptiveLineSearch(LineSearch):
         # Decrease alpha max to go exactly to the bounds if it would otherwise violate them
         # TODO: this is not the smartest way of doing this, make it better bro
         du_bounded = np.copy(du)
-        _enforce_bounds_vector(self.model.states + alpha_max * du, du_bounded, alpha_max,
-                               self.model.lower, self.model.upper)
+        _enforce_bounds_vector(
+            self.model.states + alpha_max * du, du_bounded, alpha_max, self.model.lower, self.model.upper
+        )
         alpha_max *= np.linalg.norm(du_bounded) / np.linalg.norm(du)
 
         alphas = np.linspace(self.alpha, alpha_max, 4)
 
         for i, alpha in enumerate(alphas[1:]):
             self._update_states(alpha - alphas[i], du)
+            self.model.run()
             phi2 = self._objective()
             self._iter_count += 1
             recorder["atol"].append(phi2)
@@ -236,6 +238,7 @@ class AdaptiveLineSearch(LineSearch):
             if phi2 >= phi1:
                 self._iter_count += 1
                 self._update_states(alphas[i] - alpha, du)
+                self.model.run()
                 recorder["atol"].append(phi1)
                 recorder["alpha"].append(alphas[i])
                 print(f"    + AG LS: {self._iter_count} {phi1} {alphas[i]}")
@@ -303,7 +306,7 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
         Lower bounds array.
     upper_bounds : array
         Upper bounds array.
-    
+
     Returns
     -------
     bool
