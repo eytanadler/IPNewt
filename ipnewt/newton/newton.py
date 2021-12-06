@@ -61,7 +61,7 @@ class NewtonSolver(object):
             "mu max": 1e6,
             "tau": 0.1,
             "gamma": 2.0,
-            "print status": True
+            "print status": True,
         }
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -181,6 +181,10 @@ class NewtonSolver(object):
         # Get the model
         model = self.model
 
+        # Start the solver by running the model and updating the
+        # Jacobian
+        self._start_solver()
+
         # Compute the initial residual norm
         phi0 = self._objective()
         self.data["atol"].append(phi0)
@@ -189,10 +193,6 @@ class NewtonSolver(object):
         self.data["mu upper"].append(self.mu_upper.copy())
         self.data["tau"].append(self.linear_system.tau)
         self.data["states"].append(self.model.states)
-
-        # Start the solver by running the model and updating the
-        # Jacobian
-        self._start_solver()
 
         # Print the solver info
         if self.options["print status"]:
@@ -231,6 +231,7 @@ class NewtonSolver(object):
                 self.linesearch.solve(self.linear_system.du)
             else:
                 self.model.states = self.model.states + self.linear_system.du
+                self.model.run()
 
             phi = self._objective()
 
