@@ -35,20 +35,20 @@ plt.rcParams["text.usetex"] = True
 plt.rcParams["font.size"] = 14
 plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbright}"
 
-save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], 'examples', 'plots')
+save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
-n = 3  # number of dimensions
-prob = NewtonSolver(options={"maxiter": 100, "tau": 1e-6, "mu": 1., "mu max": 1e100, "rtol": 0.})
-prob.model = HEquation(options={"n_states": n,})
+n = 10  # number of dimensions
+prob = NewtonSolver(options={"maxiter": 233, "tau": 1e-10, "gamma": 1.1, "mu": 1.0, "mu max": 1e6, "rtol": 0.0})
+prob.model = HEquation(options={"n_states": n, "upper": 15.5, "lower": 0.0})
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e2})
 
 if n == 2:
-    prob.model.states = np.array([9., 4.])
+    prob.model.states = np.array([20.0, 10.0])
 else:
     np.random.seed(5)
-    prob.model.states = np.random.rand(n)*15
+    prob.model.states = np.random.rand(n) * 10
 
 # Run the problem
 prob.setup()
@@ -59,12 +59,11 @@ print(f"Solution at {prob.model.states} with residuals of {prob.model.residuals}
 # Plot the results
 if n == 2:
     plt.figure(figsize=[12, 10])
-    xlim = [0, 10]
+    xlim = [0, 20]
     ylim = [0, 15]
-    c = viz2D.contour(plt.gca(), prob.model, xlim, ylim,
-                    levels=10**np.linspace(0, 3.176, 100) - 1, cmap='viridis')
+    c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=10 ** np.linspace(0, 3.176, 100) - 1, cmap="viridis")
     plt.colorbar(c)
-    viz2D.newton_path(plt.gca(), prob.data, c='white')
+    viz2D.newton_path(plt.gca(), prob.data, c="white")
     plt.xlabel(r"$u_1$")
     plt.ylabel(r"$u_2$")
     plt.savefig(os.path.join(save_dir, "h_equation_solver_path.pdf"))
@@ -72,7 +71,7 @@ if n == 2:
 # Plot the convergence
 fig, axs = plt.subplots(4, 1, figsize=[10, 15])
 marker = "o"
-linewidth=2
+linewidth = 2
 if len(prob.data["mu lower"]) > 50:
     marker = None
     linewidth = 0.8
@@ -80,7 +79,11 @@ vizNewt.convergence(axs[0], prob.data, "atol", color=niceColors["Blue"], marker=
 vizNewt.convergence(axs[1], prob.data, "rtol", color=niceColors["Red"], marker=marker, linewidth=linewidth)
 vizNewt.pseudo_time_step(axs[2], prob.data, marker=marker, linewidth=linewidth, color=niceColors["Green"])
 for i in range(n):
-    vizNewt.penalty_parameter(axs[3], prob.data, "mu lower", i, color=niceColors["Cyan"], marker=marker, linewidth=linewidth)
-    vizNewt.penalty_parameter(axs[3], prob.data, "mu upper", i, color=niceColors["Yellow"], marker=marker, linewidth=linewidth)
+    vizNewt.penalty_parameter(
+        axs[3], prob.data, "mu lower", i, color=niceColors["Cyan"], marker=marker, linewidth=linewidth
+    )
+    vizNewt.penalty_parameter(
+        axs[3], prob.data, "mu upper", i, color=niceColors["Yellow"], marker=marker, linewidth=linewidth
+    )
 
 plt.savefig(os.path.join(save_dir, "h_equation_var_hist.pdf"))
