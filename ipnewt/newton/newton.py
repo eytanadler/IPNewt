@@ -30,6 +30,7 @@ class NewtonSolver(object):
             "beta": float (default=10.0), geometric penalty multiplier
             "rho": float (default=0.5), constant penalty scaling term
             "mu": float (default=1e-10), initial penalty parameter
+            "mu max": float (default=1e6), maximum penalty parameter
             "tau": float (default=0.1), initial psuedo transient time step
             "gamma": float (default=2.0), pseudo transient time step geometric multiplier
             "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
@@ -56,6 +57,7 @@ class NewtonSolver(object):
             "beta": 10.0,
             "rho": 0.5,
             "mu": 1e-10,
+            "mu max": 1e6,
             "tau": 0.1,
             "gamma": 2.0,
         }
@@ -154,12 +156,12 @@ class NewtonSolver(object):
         if d_alpha_upper.size > 0:
             self.mu_upper *= beta * d_alpha_upper + rho
 
-        if np.any(self.mu_lower > 1e6):
-            self.mu_lower[:] = 1e6
+        if np.any(self.mu_lower > self.options["mu max"]):
+            self.mu_lower[:] = self.options["mu max"]
             print("Warning: Maximum penalty value reached.")
 
-        if np.any(self.mu_upper > 1e6):
-            self.mu_lower[:] = 1e6
+        if np.any(self.mu_upper > self.options["mu max"]):
+            self.mu_lower[:] = self.options["mu max"]
             print("Warning: Maximum penalty value reached.")
 
     def solve(self):
