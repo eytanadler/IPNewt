@@ -28,6 +28,7 @@ class LineSearch(object):
             "alpha max: float(default=2.0), initial max linesearch step length for forward tracking mode
             "maxiter": int (default=3), maximum linesearch iterations
             "residual penalty": True (default), add logarithmic penalty to residual vector
+            "print status": True (default), print status from linesearch calls
         """
         self.model = None
         self.mu_lower = None
@@ -37,7 +38,7 @@ class LineSearch(object):
         self.data = {"data": []}
 
         # Set options defaults
-        opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0}
+        opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0, "print status": True}
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -157,7 +158,8 @@ class AdaptiveLineSearch(LineSearch):
         phi0 = self._objective()
         recorder["atol"].append(phi0)
         recorder["alpha"].append(self.alpha)
-        print(f"    + AG LS: {self._iter_count} {phi0} {self.alpha}")
+        if self.options["print status"]:
+            print(f"    + AG LS: {self._iter_count} {phi0} {self.alpha}")
         use_fwd_track = False
         if phi0 == 0.0:
             phi0 = 1.0
@@ -180,7 +182,8 @@ class AdaptiveLineSearch(LineSearch):
         recorder["atol"].append(phi)
         recorder["alpha"].append(self.alpha)
 
-        print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
+        if self.options["print status"]:
+            print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
         if phi < self._phi0 and phi < 1.0:
             use_fwd_track = True
@@ -233,7 +236,8 @@ class AdaptiveLineSearch(LineSearch):
             self._iter_count += 1
             recorder["atol"].append(phi2)
             recorder["alpha"].append(alpha)
-            print(f"    + AG LS: {self._iter_count} {phi2} {alpha}")
+            if self.options["print status"]:
+                print(f"    + AG LS: {self._iter_count} {phi2} {alpha}")
 
             if phi2 >= phi1:
                 self._iter_count += 1
@@ -241,7 +245,8 @@ class AdaptiveLineSearch(LineSearch):
                 self.model.run()
                 recorder["atol"].append(phi1)
                 recorder["alpha"].append(alphas[i])
-                print(f"    + AG LS: {self._iter_count} {phi1} {alphas[i]}")
+                if self.options["print status"]:
+                    print(f"    + AG LS: {self._iter_count} {phi1} {alphas[i]}")
                 break
 
             phi1 = phi2
@@ -265,7 +270,8 @@ class AdaptiveLineSearch(LineSearch):
             recorder["atol"].append(phi)
             recorder["alpha"].append(self.alpha)
 
-            print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
+            if self.options["print status"]:
+                print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
     def solve(self, du):
         """Solve method for the linesearch

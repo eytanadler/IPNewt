@@ -36,6 +36,7 @@ class NewtonSolver(object):
             "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
             "interior penalty" : if True (default), add logarithmic penalty to Jacobian
             "residual penalty" : if False (default), add logarithmic penalty to residual vector
+            "print status": True (default), print status during Newton solver
         """
         self.model = None
         self._iter_count = 0
@@ -60,6 +61,7 @@ class NewtonSolver(object):
             "mu max": 1e6,
             "tau": 0.1,
             "gamma": 2.0,
+            "print status": True
         }
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -158,11 +160,13 @@ class NewtonSolver(object):
 
         if np.any(self.mu_lower > self.options["mu max"]):
             self.mu_lower[:] = self.options["mu max"]
-            print("Warning: Maximum penalty value reached.")
+            if self.options["print status"]:
+                print("Warning: Maximum penalty value reached.")
 
         if np.any(self.mu_upper > self.options["mu max"]):
             self.mu_lower[:] = self.options["mu max"]
-            print("Warning: Maximum penalty value reached.")
+            if self.options["print status"]:
+                print("Warning: Maximum penalty value reached.")
 
     def solve(self):
         # Get the options
@@ -191,7 +195,8 @@ class NewtonSolver(object):
         self._start_solver()
 
         # Print the solver info
-        print(f"| NL Newton: {self._iter_count} {phi0}")
+        if self.options["print status"]:
+            print(f"| NL Newton: {self._iter_count} {phi0}")
 
         while self._iter_count <= max_iter:
             # Logic for a single Newton iteration
@@ -232,7 +237,8 @@ class NewtonSolver(object):
             self._iter_count += 1
 
             # Print the solver info
-            print(f"| NL Newton: {self._iter_count} {phi} {phi/phi0}")
+            if self.options["print status"]:
+                print(f"| NL Newton: {self._iter_count} {phi} {phi/phi0}")
 
             self.data["atol"].append(phi)
             self.data["rtol"].append(phi / phi0)
