@@ -38,17 +38,17 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
-n = 10  # number of dimensions
-prob = NewtonSolver(options={"maxiter": 500, "tau": 1e-10, "gamma": 2.1, "mu": 1.0, "mu max": 1e6, "rtol": 0.0, "print status": True})
+n = 2  # number of dimensions
+prob = NewtonSolver(options={"maxiter": 500, "tau": 1e-10, "gamma": 2.1, "mu": 1.0, "mu max": 1e6, "rtol": 0.0, "iprint": 2})
 prob.model = HEquation(options={"n_states": n, "upper": 15.5, "lower": 0.0})
 prob.linear_system = LULinearSystem()
-prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e2, "print status": True})
+prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e2, "iprint": 2})
 
 if n == 2:
     prob.model.states = np.array([20.0, 10.0])
 else:
     np.random.seed(5)
-    prob.model.states = np.random.rand(n) * 15
+    prob.model.states = np.random.rand(n) * 5
 
 # Run the problem
 prob.setup()

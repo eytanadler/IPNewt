@@ -36,7 +36,10 @@ class NewtonSolver(object):
             "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
             "interior penalty" : if True (default), add logarithmic penalty to Jacobian
             "residual penalty" : if False (default), add logarithmic penalty to residual vector
-            "print status": True (default), print status during Newton solver
+            "iprint": int (default=2), Newton solver print level
+                        0 = print nothing
+                        1 = print convergence message
+                        2 = print iteration history
         """
         self.model = None
         self._iter_count = 0
@@ -61,7 +64,7 @@ class NewtonSolver(object):
             "mu max": 1e6,
             "tau": 0.1,
             "gamma": 2.0,
-            "print status": True,
+            "iprint": 2,
         }
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -160,35 +163,24 @@ class NewtonSolver(object):
 
         if np.any(self.mu_lower > self.options["mu max"]):
             self.mu_lower[:] = self.options["mu max"]
-            if self.options["print status"]:
+            if self.options["iprint"] > 1:
                 print("Warning: Maximum penalty value reached.")
 
         if np.any(self.mu_upper > self.options["mu max"]):
             self.mu_lower[:] = self.options["mu max"]
-            if self.options["print status"]:
+            if self.options["iprint"] > 1:
                 print("Warning: Maximum penalty value reached.")
 
     def solve(self):
-        print(
-            "                                                                                                    \n" \
-            "                                                                                                    \n" \
-            "                                                                                                    \n" \
-            "      ####   ###########    /////      ////                                                         \n" \
-            "      ####   ####    ####   ///////    ////                                     ///% %              \n" \
-            "      ####   ####    ####   ////////   ////    /////////   ////%  /////   /////////%%/    %%%%%%    \n" \
-            "      ####   ##########     ////  //// ////  ////     ///   ///  //////  ////   ///%%    %%%%%%%    \n" \
-            "      ####   ####           ////   ////////  ///////////*   ///////  ///////    ////  %%%%%%%%      \n" \
-            "      ####   ####           ////     //////   ///////////  %%//////   /////%    /////%%%%%%%  %%%   \n" \
-            "                                                  ///      %              %%%      %%%%%%   %%      \n" \
-            "                                                           %%            %%     %%%%%%%%            \n" \
-            "                                                            %%            %% %%%%%%%%%              \n" \
-            "                                                             %%%%.      %%%%%%%%%%%                 \n" \
-            "                                                                %%%%%%%%%%%%%%                      \n" \
-            "                                                                           %%                       \n" \
-            "                                                                           %%                       \n" \
-            "                                                                           %%%                      \n" \
-            "                                                                                                    \n"
-        )
+        if self.options["iprint"] > 0:
+            print(
+              "\n    ____________________   __              _____ \n"
+                "    ____  _/__  __ \__  | / /_______      ___  /_\n"
+                "    __  / __  /_/ /_   |/ /_  _ \_ | /| / /  __/ \n"
+                "    __/ /  _  ____/_  /|  / /  __/_ |/ |/ // /_  \n"
+                "    /___/  /_/     /_/ |_/  \___/____/|__/ \__/  \n"
+                "                                                 \n"
+            )
 
         # Get the options
         options = self.options
@@ -216,7 +208,7 @@ class NewtonSolver(object):
         self.data["states"].append(self.model.states)
 
         # Print the solver info
-        if self.options["print status"]:
+        if self.options["iprint"] > 1:
             print(f"| NL Newton: {self._iter_count} {phi0}")
 
         while self._iter_count <= max_iter:
@@ -259,7 +251,7 @@ class NewtonSolver(object):
             self._iter_count += 1
 
             # Print the solver info
-            if self.options["print status"]:
+            if self.options["iprint"] > 1:
                 print(f"| NL Newton: {self._iter_count} {phi} {phi/phi0}")
 
             self.data["atol"].append(phi)
@@ -278,7 +270,8 @@ class NewtonSolver(object):
                 converged = True
                 break
 
-        if converged:
-            print(f"| NL Newton converged in {self._iter_count} iterations")
-        else:
-            print("| NL Newton failed to converge to the requested tolerance")
+        if self.options["iprint"] > 0:
+            if converged:
+                print(f"| NL Newton converged in {self._iter_count} iterations")
+            else:
+                print("| NL Newton failed to converge to the requested tolerance")

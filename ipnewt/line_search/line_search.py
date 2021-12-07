@@ -28,7 +28,10 @@ class LineSearch(object):
             "alpha max: float(default=2.0), initial max linesearch step length for forward tracking mode
             "maxiter": int (default=3), maximum linesearch iterations
             "residual penalty": True (default), add logarithmic penalty to residual vector
-            "print status": True (default), print status from linesearch calls
+            "iprint": int (default=2), linesearch print level
+                        0 = print nothing
+                        1 = print convergence message
+                        2 = print iteration history
         """
         self.model = None
         self.mu_lower = None
@@ -38,7 +41,7 @@ class LineSearch(object):
         self.data = {"data": []}
 
         # Set options defaults
-        opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0, "print status": True}
+        opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0, "iprint": 2}
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -158,8 +161,8 @@ class AdaptiveLineSearch(LineSearch):
         phi0 = self._objective()
         recorder["atol"].append(phi0)
         recorder["alpha"].append(self.alpha)
-        if self.options["print status"]:
-            print(f"    + AG LS: {self._iter_count} {phi0} {self.alpha}")
+        if self.options["iprint"] > 1:
+            print(f"    + Init LS: {self._iter_count} {phi0} {self.alpha}")
         use_fwd_track = False
         if phi0 == 0.0:
             phi0 = 1.0
@@ -182,15 +185,15 @@ class AdaptiveLineSearch(LineSearch):
         recorder["atol"].append(phi)
         recorder["alpha"].append(self.alpha)
 
-        if self.options["print status"]:
-            print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
-
         if phi < self._phi0 and phi < 1.0:
             use_fwd_track = True
 
         # Prevent forward tracking linesearch when the step goes right up to a bound
         if step_limited:
             use_fwd_track = False
+
+        if self.options["iprint"] > 1:
+            print(f"    + {'FT' if use_fwd_track else 'AG'} LS: {self._iter_count} {phi} {self.alpha}")
 
         return phi, use_fwd_track
 
@@ -236,8 +239,8 @@ class AdaptiveLineSearch(LineSearch):
             self._iter_count += 1
             recorder["atol"].append(phi2)
             recorder["alpha"].append(alpha)
-            if self.options["print status"]:
-                print(f"    + AG LS: {self._iter_count} {phi2} {alpha}")
+            if self.options["iprint"] > 1:
+                print(f"    + FT LS: {self._iter_count} {phi2} {alpha}")
 
             if phi2 >= phi1:
                 self._iter_count += 1
@@ -245,8 +248,8 @@ class AdaptiveLineSearch(LineSearch):
                 self.model.run()
                 recorder["atol"].append(phi1)
                 recorder["alpha"].append(alphas[i])
-                if self.options["print status"]:
-                    print(f"    + AG LS: {self._iter_count} {phi1} {alphas[i]}")
+                if self.options["iprint"] > 1:
+                    print(f"    + FT LS: {self._iter_count} {phi1} {alphas[i]}")
                 break
 
             phi1 = phi2
@@ -270,7 +273,7 @@ class AdaptiveLineSearch(LineSearch):
             recorder["atol"].append(phi)
             recorder["alpha"].append(self.alpha)
 
-            if self.options["print status"]:
+            if self.options["iprint"] > 1:
                 print(f"    + AG LS: {self._iter_count} {phi} {self.alpha}")
 
     def solve(self, du):
@@ -286,8 +289,12 @@ class AdaptiveLineSearch(LineSearch):
 
         if use_fwd_track:
             self._forward_track(du, phi, recorder)
+            if self.options["iprint"] == 1:
+                print(f"    + FT LS done in {self._iter_count} iterations with phi = {phi},  alpha = {self.alpha}")
         else:
             self._back_track(du, phi, self.options["maxiter"], recorder)
+            if self.options["iprint"] == 1:
+                print(f"    + AG LS done in {self._iter_count} iterations with phi = {phi},  alpha = {self.alpha}")
 
         self.data["data"].append(recorder)
 
