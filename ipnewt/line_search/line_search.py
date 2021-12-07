@@ -23,7 +23,7 @@ import numpy as np
 class LineSearch(object):
     def __init__(self, options={}):
         """
-        Valid Linesearch Options:
+        Valid linesearch options:
             "alpha": float (default=1.0), initial lineserach step length
             "alpha max: float(default=2.0), initial max linesearch step length for forward tracking mode
             "maxiter": int (default=3), maximum linesearch iterations
@@ -117,7 +117,7 @@ class LineSearch(object):
 class AdaptiveLineSearch(LineSearch):
     def __init__(self, options={}):
         """
-        Valid Backtracking Linesearch Options:
+        Valid backtracking linesearch options:
             "c": float (default = 0.1), armijo-goldstein curvature parameter
             "rho": float (default=0.5), geometric multiplier for the step length
         """
@@ -296,6 +296,49 @@ class AdaptiveLineSearch(LineSearch):
             if self.options["iprint"] == 1:
                 print(f"    + AG LS done in {self._iter_count} iterations with phi = {phi},  alpha = {self.alpha}")
 
+        self.data["data"].append(recorder)
+
+class BoundsEnforceLineSearch(LineSearch):
+    """
+    A linesearch that performs vector bounds enforcement and that's it.
+    """
+    def __init__(self, options={}):
+        """
+        Valid bounds enforce linesearch options:
+            None
+        """
+        super().__init__(options)
+        self._phi0 = None
+        self._dir_derivative = None
+        self.alpha = None
+
+        # Set options defaults
+        opt_defaults = {}
+
+        for opt in opt_defaults.keys():
+            if opt not in self.options.keys():
+                self.options[opt] = opt_defaults[opt]
+
+        self.data["options"] = self.options
+
+    def solve(self, du):
+        """Solve method for the bounds enforce linesearch
+
+        Parameters
+        ----------
+        du : array
+            Newton step vector
+        """
+        self.alpha = self.options["alpha"]
+        recorder = {"alpha": [self.options["alpha"]]}
+        self._update_states(self.alpha, du)
+        step_limited = self._enforce_bounds(du, self.alpha)
+        self.model.run()
+
+        if step_limited and self.options["iprint"] > 1:
+            print(f"    + BE LS limited step to alpha of {self.alpha}")
+        
+        recorder["alpha"].append(self.alpha)
         self.data["data"].append(recorder)
 
 
