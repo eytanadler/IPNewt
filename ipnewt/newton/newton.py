@@ -240,7 +240,8 @@ class NewtonSolver(object):
         if self.options["interior penalty"]:
             self.data["mu lower"].append(self.mu_lower.copy())
             self.data["mu upper"].append(self.mu_upper.copy())
-        self.data["tau"].append(self.linear_system.tau)
+        if self.options["pseudo transient"]:
+            self.data["tau"].append(self.linear_system.tau)
         self.data["states"].append(self.model.states)
 
         # Print the solver info
@@ -300,7 +301,8 @@ class NewtonSolver(object):
             if self.options["interior penalty"]:
                 self.data["mu lower"].append(self.mu_lower.copy())
                 self.data["mu upper"].append(self.mu_upper.copy())
-            self.data["tau"].append(self.linear_system.tau)
+            if self.options["pseudo transient"]:
+                self.data["tau"].append(self.linear_system.tau)
             self.data["states"].append(self.model.states)
 
             # Check the convergence tolerances

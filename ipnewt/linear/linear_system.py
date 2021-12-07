@@ -132,8 +132,8 @@ class LinearSystem(object):
 
 
 class LULinearSystem(LinearSystem):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.lu = None
 
     def check_options(self):
