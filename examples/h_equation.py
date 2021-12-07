@@ -38,17 +38,18 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
-n = 2  # number of dimensions
-prob = NewtonSolver(options={"maxiter": 500, "tau": 1e-10, "gamma": 2.1, "mu": 1.0, "mu max": 1e6, "rtol": 0.0, "iprint": 2})
-prob.model = HEquation(options={"n_states": n, "upper": 15.5, "lower": 0.0})
+n = 1000  # number of dimensions
+prob = NewtonSolver(options={"maxiter": 200, "tau": 1e-1, "gamma": 1.1, "mu": 1.0, "mu max": 1e100, "rtol": 0.0, "iprint": 2})
+prob.model = HEquation(options={"n_states": n, "upper": 25., "lower": 0.0})
 prob.linear_system = LULinearSystem()
-prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e2, "iprint": 2})
+prob.linesearch = AdaptiveLineSearch(options={"alpha max": 5, "iprint": 2})
 
 if n == 2:
-    prob.model.states = np.array([20.0, 10.0])
+    prob.model.states = np.array([10.0, 10.0])
 else:
     np.random.seed(5)
-    prob.model.states = np.random.rand(n) * 5
+    prob.model.states = np.linspace(0, 1, n) * np.random.rand(n) * 25.
+    prob.model.states[0] = 1e-5
 
 # Run the problem
 prob.setup()
@@ -59,7 +60,7 @@ print(f"Solution at {prob.model.states} with residuals of {prob.model.residuals}
 # Plot the results
 if n == 2:
     plt.figure(figsize=[12, 10])
-    xlim = [0, 20]
+    xlim = [0, 15]
     ylim = [0, 15]
     c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, levels=10 ** np.linspace(0, 3.176, 100) - 1, cmap="viridis")
     plt.colorbar(c)
@@ -85,5 +86,6 @@ for i in range(n):
     vizNewt.penalty_parameter(
         axs[3], prob.data, "mu upper", i, color=niceColors["Yellow"], marker=marker, linewidth=linewidth
     )
+axs[3].set_ylabel(r"$\mu$", rotation="horizontal", horizontalalignment="right")
 
 plt.savefig(os.path.join(save_dir, "h_equation_var_hist.pdf"))

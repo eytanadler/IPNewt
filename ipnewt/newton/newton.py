@@ -32,6 +32,7 @@ class NewtonSolver(object):
             "mu": float (default=1e-10), initial penalty parameter
             "mu max": float (default=1e6), maximum penalty parameter
             "tau": float (default=0.1), initial psuedo transient time step
+            "tau max": float (default=1e20), maximum psuedo transient time step
             "gamma": float (default=2.0), pseudo transient time step geometric multiplier
             "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
             "interior penalty" : if True (default), add logarithmic penalty to Jacobian
@@ -63,6 +64,7 @@ class NewtonSolver(object):
             "mu": 1e-10,
             "mu max": 1e6,
             "tau": 0.1,
+            "tau max": 1e20,
             "gamma": 2.0,
             "iprint": 2,
         }
@@ -257,6 +259,10 @@ class NewtonSolver(object):
                 # Geometrically update the pseduo transient term
                 if self.options["pseudo transient"]:
                     self.linear_system.tau *= self.options["gamma"]
+                    if self.linear_system.tau > self.options["tau max"]:
+                        self.linear_system.tau = self.options["tau max"]
+                        if self.options["iprint"] > 1:
+                            print("Warning: Maximum pseudo transient time step reached.")
 
                 # Run the model and update the linear system
                 model.run()
