@@ -19,7 +19,7 @@ import numpy as np
 # ==============================================================================
 
 
-def contour(ax, model, xlim, ylim, n_pts=100, **kwargs):
+def contour(ax, model, xlim, ylim, i_res=None, n_pts=100, **kwargs):
     """Plot the contours of a 2D problem.
 
     Additional keyword arguments for matplotlib's contour
@@ -36,6 +36,8 @@ def contour(ax, model, xlim, ylim, n_pts=100, **kwargs):
         Lower and upper bounds to plot contours along the x-axis.
     ylim : two-element iterable
         Lower and upper bounds to plot contours along the y-axis.
+    i_res : int, optional
+        Index of the residual to plot, if None will plot the residual norm (default None)
     n_pts : int, optional
         Number of points in each direction at which to evaluate the plotted function.
 
@@ -44,9 +46,12 @@ def contour(ax, model, xlim, ylim, n_pts=100, **kwargs):
     matplotlib QuadContourSet
         Useful to make colorbar, can be ignored
     """
+    if i_res is not None and (i_res > 1 or i_res < 0):
+        raise ValueError(f"i_res must be either None (plot 2-norm), 0, or 1, not {i_res}")
+
     # Generate a grid on which to evaluate the residual norm
     x, y = np.meshgrid(np.linspace(*xlim, n_pts), np.linspace(*ylim, n_pts), indexing="xy")
-    norms = np.zeros(x.shape)
+    val = np.zeros(x.shape)
 
     # States and residuals
     u = np.zeros(2)
@@ -60,9 +65,12 @@ def contour(ax, model, xlim, ylim, n_pts=100, **kwargs):
             # Compute the residuals at the current point
             model.compute_residuals(u, res)
 
-            norms[i, j] = np.linalg.norm(res)
+            if i_res is None:
+                val[i, j] = np.linalg.norm(res)
+            else:
+                val[i, j] = res[i_res]
 
-    return ax.contour(x, y, norms, **kwargs)
+    return ax.contour(x, y, val, **kwargs)
 
 
 def penalty_contour(ax, data, model, xlim, ylim, idx, n_pts=100, **kwargs):

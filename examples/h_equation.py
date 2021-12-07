@@ -38,7 +38,7 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
-n = 1000  # number of dimensions
+n = 2  # number of dimensions
 prob = NewtonSolver(
     options={"maxiter": 200, "tau": 1e-1, "gamma": 1.1, "mu": 1.0, "mu max": 1e100, "rtol": 0.0, "iprint": 2}
 )
@@ -47,7 +47,7 @@ prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 5, "iprint": 2})
 
 if n == 2:
-    prob.model.states = np.array([10.0, 10.0])
+    prob.model.states = np.array([9.0, 10.0])
 else:
     np.random.seed(5)
     prob.model.states = np.linspace(0, 1, n) * np.random.rand(n) * 25.0

@@ -95,13 +95,11 @@ class NewtonSolver(object):
         u = self.model.states
         lb = self.model.lower
         ub = self.model.upper
-        lb_mask = self.model.lower_finite_mask
-        ub_mask = self.model.upper_finite_mask
 
-        feasible = np.all(np.logical_and(lb[lb_mask] < u[lb_mask], u[ub_mask] < ub[ub_mask]))
+        feasible = np.all(np.logical_and(lb < u, u < ub))
 
         if raise_error and not feasible:
-            infeas_states = np.where(np.logical_or(lb[lb_mask] > u[lb_mask], u[ub_mask] > ub[ub_mask]))[0]
+            infeas_states = np.where(np.logical_or(lb > u, u > ub))[0]
             raise ValueError(f"State(s) {', '.join(str(s) for s in infeas_states)} are not within the specified bounds")
 
         return feasible
