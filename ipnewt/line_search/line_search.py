@@ -227,8 +227,6 @@ class AdaptiveLineSearch(LineSearch):
         )
         alpha_max *= np.linalg.norm(du_bounded) / np.linalg.norm(du)
 
-        print(f"STATES and STEP: {self.model.states} | {du} | {du_bounded} | {alpha_max}")
-
         alphas = np.linspace(self.alpha, alpha_max, 4)
 
         for i, alpha in enumerate(alphas[1:]):
@@ -348,7 +346,10 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
             if max_d_alpha > d_alpha:
                 d_alpha = max_d_alpha
 
-    d_alpha = min(d_alpha, 1.0)
+    # A d_alpha greater than alpha will make it take a step backwards, meaning
+    # that it already violated the bounds before the step, which doesn't make sense
+    d_alpha = min(d_alpha, alpha)
+
     if d_alpha > 0:
         # d_alpha will not be negative because it was initialized to be 0
         # and we've only done max operations.

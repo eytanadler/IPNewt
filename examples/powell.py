@@ -38,7 +38,7 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], 'examples', 'plots')
 
 # Set up problem
-prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01, "mu": 1e5})
+prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01, "mu": 1e0})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
