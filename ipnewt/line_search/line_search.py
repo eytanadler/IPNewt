@@ -117,9 +117,9 @@ class LineSearch(object):
 class AdaptiveLineSearch(LineSearch):
     def __init__(self, options={}):
         """
-            Valid Backtracking Linesearch Options:
-                "c": float (default = 0.1), armijo-goldstein curvature parameter
-                "rho": float (default=0.5), geometric multiplier for the step length
+        Valid Backtracking Linesearch Options:
+            "c": float (default = 0.1), armijo-goldstein curvature parameter
+            "rho": float (default=0.5), geometric multiplier for the step length
         """
         super().__init__(options)
         self._phi0 = None

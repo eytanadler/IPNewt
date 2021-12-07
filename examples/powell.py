@@ -35,7 +35,7 @@ plt.rcParams["text.usetex"] = True
 plt.rcParams["font.size"] = 14
 plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbright}"
 
-save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], 'examples', 'plots')
+save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
 prob = NewtonSolver(options={"maxiter": 100, "tau": 1e3, "mu": 1e0})

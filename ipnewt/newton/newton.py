@@ -86,7 +86,7 @@ class NewtonSolver(object):
         ----------
         raise_error : bool, optional
             Raise an error if states not all within bounds, by default False
-        
+
         Returns
         -------
         bool
@@ -112,8 +112,9 @@ class NewtonSolver(object):
         if self.options["interior penalty"]:
             self.linear_system.mu_lower = self.options["mu"]
             self.linear_system.mu_upper = self.options["mu"]
-            self.linesearch.mu_lower = self.options["mu"]
-            self.linesearch.mu_upper = self.options["mu"]
+            if self.linesearch:
+                self.linesearch.mu_lower = self.options["mu"]
+                self.linesearch.mu_upper = self.options["mu"]
             self.mu_lower = np.full(n_states, self.options["mu"])
             self.mu_upper = np.full(n_states, self.options["mu"])
 
@@ -205,7 +206,7 @@ class NewtonSolver(object):
     def solve(self):
         if self.options["iprint"] > 0:
             print(
-              "\n    ____________________   __              _____ \n"
+                "\n    ____________________   __              _____ \n"
                 "    ____  _/__  __ \__  | / /_______      ___  /_\n"
                 "    __  / __  /_/ /_   |/ /_  _ \_ | /| / /  __/ \n"
                 "    __/ /  _  ____/_  /|  / /  __/_ |/ |/ // /_  \n"
@@ -253,8 +254,9 @@ class NewtonSolver(object):
                     self._update_penalty()
                     self.linear_system.mu_lower = self.mu_lower
                     self.linear_system.mu_upper = self.mu_upper
-                    self.linesearch.mu_lower = self.mu_lower
-                    self.linesearch.mu_upper = self.mu_upper
+                    if self.linesearch:
+                        self.linesearch.mu_lower = self.mu_lower
+                        self.linesearch.mu_upper = self.mu_upper
 
                 # Geometrically update the pseduo transient term
                 if self.options["pseudo transient"]:

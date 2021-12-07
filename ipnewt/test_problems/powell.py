@@ -36,21 +36,18 @@ class Powell(Model):
     two upper : float
         Upper bound on the second state (default 15)
     """
+
     def __init__(self, options={}):
         # Set options defaults
-        opt_defaults = {
-            "one lower": -10.,
-            "two lower": -10.,
-            "one upper": 15.,
-            "two upper": 15.
-        }
+        opt_defaults = {"one lower": -10.0, "two lower": -10.0, "one upper": 15.0, "two upper": 15.0}
         for opt in opt_defaults.keys():
             if opt not in options.keys():
                 options[opt] = opt_defaults[opt]
 
         # Call the base class init with the correct number of states and bounds
-        super().__init__(2, lower=[options["one lower"], options["two lower"]],
-                         upper=[options["one upper"], options["two upper"]])
+        super().__init__(
+            2, lower=[options["one lower"], options["two lower"]], upper=[options["one upper"], options["two upper"]]
+        )
 
     def compute_residuals(self, u, res):
         """

@@ -20,14 +20,12 @@ import unittest
 # ==============================================================================
 from ipnewt.api import Powell, NewtonSolver, LULinearSystem, AdaptiveLineSearch
 
+
 class TestNewton(unittest.TestCase):
     def test_bounds_not_violated(self):
         # Set up problem
         prob = NewtonSolver(options={"maxiter": 100, "tau": 0.01})
-        prob.model = Powell(options={"one lower": -10,
-                                     "two lower": -10,
-                                     "one upper": 15,
-                                     "two upper": 15})
+        prob.model = Powell(options={"one lower": -10, "two lower": -10, "one upper": 15, "two upper": 15})
         prob.linear_system = LULinearSystem()
         prob.linesearch = AdaptiveLineSearch(options={"alpha max": 3.0})
 
@@ -46,5 +44,6 @@ class TestNewton(unittest.TestCase):
         self.assertTrue(np.all(states_hist[:, 0] <= 15))
         self.assertTrue(np.all(states_hist[:, 1] <= 15))
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     unittest.main()

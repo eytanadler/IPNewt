@@ -39,8 +39,10 @@ save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots
 
 # Set up problem
 n = 1000  # number of dimensions
-prob = NewtonSolver(options={"maxiter": 200, "tau": 1e-1, "gamma": 1.1, "mu": 1.0, "mu max": 1e100, "rtol": 0.0, "iprint": 2})
-prob.model = HEquation(options={"n_states": n, "upper": 25., "lower": 0.0})
+prob = NewtonSolver(
+    options={"maxiter": 200, "tau": 1e-1, "gamma": 1.1, "mu": 1.0, "mu max": 1e100, "rtol": 0.0, "iprint": 2}
+)
+prob.model = HEquation(options={"n_states": n, "upper": 25.0, "lower": 0.0})
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 5, "iprint": 2})
 
@@ -48,7 +50,7 @@ if n == 2:
     prob.model.states = np.array([10.0, 10.0])
 else:
     np.random.seed(5)
-    prob.model.states = np.linspace(0, 1, n) * np.random.rand(n) * 25.
+    prob.model.states = np.linspace(0, 1, n) * np.random.rand(n) * 25.0
     prob.model.states[0] = 1e-5
 
 # Run the problem

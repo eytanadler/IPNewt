@@ -59,8 +59,10 @@ class Model(object):
             self.lower = lower * np.ones(n_states)
         elif isinstance(lower, (list, np.ndarray)):
             if len(lower) != n_states:
-                raise ValueError("If the lower bounds are defined as an iterable, \
-                                  it must have a length of n_states")
+                raise ValueError(
+                    "If the lower bounds are defined as an iterable, \
+                                  it must have a length of n_states"
+                )
             self.lower = np.array(lower)
         else:
             self.lower = -np.inf * np.ones(n_states)
@@ -69,12 +71,14 @@ class Model(object):
             self.upper = upper * np.ones(n_states)
         elif isinstance(upper, (list, np.ndarray)):
             if len(upper) != n_states:
-                raise ValueError("If the upper bounds are defined as an iterable, \
-                                  it must have a length of n_states")
+                raise ValueError(
+                    "If the upper bounds are defined as an iterable, \
+                                  it must have a length of n_states"
+                )
             self.upper = np.array(upper)
         else:
             self.upper = -np.inf * np.ones(n_states)
-        
+
         # Mask for bounds that are defined
         self.lower_finite_mask = np.isfinite(self.lower)
         self.upper_finite_mask = np.isfinite(self.upper)
@@ -88,7 +92,7 @@ class Model(object):
         for i in range(self.n_states):
             if self.lower[i] > self.upper[i]:
                 raise ValueError(f"Lower bound is greater than upper bound on state {i}")
-    
+
     def run(self):
         """
         Computes the residuals and the Jacobian matrix.
@@ -101,7 +105,7 @@ class Model(object):
         Internally pass states and residuals to user-defined function.
         """
         self.compute_residuals(self.states, self.residuals)
-    
+
     def _compute_jacobian(self):
         """
         Internally pass states and jacobian to user-defined function.

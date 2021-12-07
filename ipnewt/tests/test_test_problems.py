@@ -20,6 +20,7 @@ import unittest
 # ==============================================================================
 from ipnewt.api import Powell, HEquation, test_utils
 
+
 class TestPowell(unittest.TestCase):
     def test_residuals_soln(self):
         model = Powell()
@@ -30,7 +31,7 @@ class TestPowell(unittest.TestCase):
         model.compute_residuals(u, res)
 
         np.testing.assert_allclose(res, np.zeros(2), atol=1e-3)
-    
+
     def test_residuals_zeros(self):
         model = Powell()
 
@@ -39,8 +40,8 @@ class TestPowell(unittest.TestCase):
         res = np.zeros(2)
         model.compute_residuals(u, res)
 
-        np.testing.assert_allclose(res, np.array([-1, .9999]), atol=1e-3)
-    
+        np.testing.assert_allclose(res, np.array([-1, 0.9999]), atol=1e-3)
+
     def test_derivatives(self):
         model = Powell()
 
@@ -51,12 +52,9 @@ class TestPowell(unittest.TestCase):
         # Check the derivaties away from the solution
         model.states = np.array([14.9, 14.9])
         self.assertTrue(test_utils.check_model_derivatives(model, print_results=False))
-    
+
     def test_bounds(self):
-        model = Powell(options={"one lower": -14,
-                                "one upper": -13,
-                                "two lower": -3,
-                                "two upper": 1})
+        model = Powell(options={"one lower": -14, "one upper": -13, "two lower": -3, "two upper": 1})
         np.testing.assert_allclose(model.lower, np.array([-14, -3]), atol=1e-15)
         np.testing.assert_allclose(model.upper, np.array([-13, 1]), atol=1e-15)
 
@@ -65,12 +63,12 @@ class TestHEquation(unittest.TestCase):
     def test_residuals(self):
         model = HEquation()
 
-        u = np.array([2., 3.])
+        u = np.array([2.0, 3.0])
         res = np.zeros(2)
         model.compute_residuals(u, res)
 
         np.testing.assert_allclose(res, np.array([0.72, 1.4]), atol=1e-10)
-    
+
     def test_derivatives(self):
         model = HEquation()
 
@@ -81,27 +79,26 @@ class TestHEquation(unittest.TestCase):
         # Check the derivaties in another spot
         model.states = np.array([14.9, 14.9])
         self.assertTrue(test_utils.check_model_derivatives(model, print_results=False))
-    
+
     def test_bounds(self):
-        model = HEquation(options={"lower": -14,
-                                   "upper": -13})
+        model = HEquation(options={"lower": -14, "upper": -13})
         np.testing.assert_allclose(model.lower, np.array([-14, -14]), atol=1e-15)
         np.testing.assert_allclose(model.upper, np.array([-13, -13]), atol=1e-15)
-    
+
     def test_higher_dim(self):
         n = 5
         model = HEquation(options={"n_states": n})
 
-        u = np.array([2., 3., 1., 4., 5.])
+        u = np.array([2.0, 3.0, 1.0, 4.0, 5.0])
         res = np.zeros(n)
         model.compute_residuals(u, res)
 
-        np.testing.assert_allclose(res, np.array([0.829268,  1.589065, -0.599238,  2.242402,  3.105548]), atol=1e-6)
+        np.testing.assert_allclose(res, np.array([0.829268, 1.589065, -0.599238, 2.242402, 3.105548]), atol=1e-6)
 
         # Check the derivaties in one spot
         model.states = 1.5 * np.ones(n)
         self.assertTrue(test_utils.check_model_derivatives(model, print_results=False))
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     unittest.main()

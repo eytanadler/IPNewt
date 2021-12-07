@@ -37,21 +37,16 @@ class HEquation(Model):
     c : float
         Constant in the H-equation between 0 and 1 (default 0.5)
     """
+
     def __init__(self, options={}):
         # Set options defaults
-        opt_defaults = {
-            "n_states": 2,
-            "lower": 0.,
-            "upper": np.inf,
-            "c": 0.5
-        }
+        opt_defaults = {"n_states": 2, "lower": 0.0, "upper": np.inf, "c": 0.5}
         for opt in opt_defaults.keys():
             if opt not in options.keys():
                 options[opt] = opt_defaults[opt]
 
         # Call the base class init with the correct number of states and bounds
-        super().__init__(options["n_states"], lower=options["lower"], upper=options["upper"],
-                         options=options)
+        super().__init__(options["n_states"], lower=options["lower"], upper=options["upper"], options=options)
 
     def compute_residuals(self, u, res):
         """
@@ -60,9 +55,9 @@ class HEquation(Model):
         n = self.options["n_states"]
         c = self.options["c"]
 
-        mu = (np.arange(1, n+1) - 0.5) / n
+        mu = (np.arange(1, n + 1) - 0.5) / n
         for i in range(n):
-            res[i] = u[i] - 1 / (1 - c / (2*n) * np.sum( mu[i]*u / (mu[i] + mu) ))
+            res[i] = u[i] - 1 / (1 - c / (2 * n) * np.sum(mu[i] * u / (mu[i] + mu)))
 
     def compute_jacobian(self, u, J):
         """
@@ -71,11 +66,11 @@ class HEquation(Model):
         n = self.options["n_states"]
         c = self.options["c"]
 
-        mu = (np.arange(1, n+1) - 0.5) / n
+        mu = (np.arange(1, n + 1) - 0.5) / n
         for i in range(n):
-            denom = 1 - c / (2*n) * np.sum( mu[i]*u / (mu[i] + mu) )
+            denom = 1 - c / (2 * n) * np.sum(mu[i] * u / (mu[i] + mu))
             for j in range(n):
-                J[i, j] = copy(denom)**-2
-                J[i, j] *= -c / (2*n) * mu[i] / (mu[i] + mu[j])
+                J[i, j] = copy(denom) ** -2
+                J[i, j] *= -c / (2 * n) * mu[i] / (mu[i] + mu[j])
                 if i == j:
                     J[i, j] += 1

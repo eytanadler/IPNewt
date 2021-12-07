@@ -47,7 +47,7 @@ def check_model_derivatives(model, use_complex=True, step_size=None, print_resul
         step_size = 1e-6
         if use_complex:
             step_size = 1e-100
-    
+
     n_states = model.n_states
     dtype = float
     if use_complex:
@@ -70,7 +70,7 @@ def check_model_derivatives(model, use_complex=True, step_size=None, print_resul
             u[i] += step_size * 1j
         else:
             u[i] += step_size
-        
+
         # Evaluate the new residuals
         model.compute_residuals(u, res_pert)
 
@@ -79,13 +79,13 @@ def check_model_derivatives(model, use_complex=True, step_size=None, print_resul
             J_check[:, i] = np.imag(res_pert) / step_size
         else:
             J_check[:, i] = (res_pert - res_orig) / step_size
-        
+
         # Unperturb the ith state
         if use_complex:
             u[i] -= step_size * 1j
         else:
             u[i] -= step_size
-    
+
     # Compute tolerances
     abs_diff = J_model - J_check
     rel_diff = (J_model - J_check) / J_check
@@ -93,7 +93,9 @@ def check_model_derivatives(model, use_complex=True, step_size=None, print_resul
     # Print results if desired
     if print_results:
         print("==================== Checking derivatives ====================")
-        print(f"Using {'complex step' if use_complex else 'forward finite difference'} with a step size of {step_size:e}")
+        print(
+            f"Using {'complex step' if use_complex else 'forward finite difference'} with a step size of {step_size:e}"
+        )
 
         print(f"\nJacobian returned by model:")
         print(J_model)
@@ -106,7 +108,7 @@ def check_model_derivatives(model, use_complex=True, step_size=None, print_resul
 
         print(f"\nRelative difference:")
         print(rel_diff)
-    
+
     # Check the tolerances
     results = np.logical_and(abs_diff > atol, rel_diff > rtol)
     return not results.any()
