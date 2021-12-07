@@ -237,8 +237,9 @@ class NewtonSolver(object):
         phi0 = self._objective()
         self.data["atol"].append(phi0)
         self.data["rtol"].append(1.0)
-        self.data["mu lower"].append(self.mu_lower.copy())
-        self.data["mu upper"].append(self.mu_upper.copy())
+        if self.options["interior penalty"]:
+            self.data["mu lower"].append(self.mu_lower.copy())
+            self.data["mu upper"].append(self.mu_upper.copy())
         self.data["tau"].append(self.linear_system.tau)
         self.data["states"].append(self.model.states)
 
@@ -296,8 +297,9 @@ class NewtonSolver(object):
 
             self.data["atol"].append(phi)
             self.data["rtol"].append(phi / phi0)
-            self.data["mu lower"].append(self.mu_lower.copy())
-            self.data["mu upper"].append(self.mu_upper.copy())
+            if self.options["interior penalty"]:
+                self.data["mu lower"].append(self.mu_lower.copy())
+                self.data["mu upper"].append(self.mu_upper.copy())
             self.data["tau"].append(self.linear_system.tau)
             self.data["states"].append(self.model.states)
 
