@@ -57,7 +57,9 @@ plt.figure(figsize=[12, 10])
 xlim = [-11, 16]
 ylim = [-11, 16]
 c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, n_pts=500, levels=100, cmap="viridis")
-plt.colorbar(c)
+plt.colorbar(c, label=r"$\lVert r \rVert_2$")
+viz2D.contour(plt.gca(), prob.model, xlim, ylim, i_res=0, n_pts=200, levels=[0], colors="red")
+viz2D.contour(plt.gca(), prob.model, xlim, ylim, i_res=1, n_pts=200, levels=[0], colors="green")
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
 viz2D.newton_path(plt.gca(), prob.data, c="white")
 plt.xlabel(r"$u_1$")

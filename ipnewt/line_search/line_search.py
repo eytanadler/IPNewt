@@ -329,6 +329,9 @@ class BoundsEnforceLineSearch(LineSearch):
         du : array
             Newton step vector
         """
+        if self.options["iprint"] > 1:
+            du_orig = np.copy(du)
+
         self.alpha = self.options["alpha"]
         recorder = {"alpha": [self.options["alpha"]]}
         self._update_states(self.alpha, du)
@@ -336,7 +339,7 @@ class BoundsEnforceLineSearch(LineSearch):
         self.model.run()
 
         if step_limited and self.options["iprint"] > 1:
-            print(f"    + BE LS limited step to alpha of {self.alpha}")
+            print(f"    + BE LS limited step by {(1 - np.linalg.norm(du)/np.linalg.norm(du_orig))*100}%")
         
         recorder["alpha"].append(self.alpha)
         self.data["data"].append(recorder)
