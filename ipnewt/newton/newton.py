@@ -75,6 +75,35 @@ class NewtonSolver(object):
     def _check_options(self):
         pass
 
+    def _check_states(self, raise_error=False):
+        """Checks that the states are all within the bounds.
+        Optionally will raise an error if they are not. Otherwise,
+        returns true if all the states are valid and false otherwise.
+
+        Parameters
+        ----------
+        raise_error : bool, optional
+            Raise an error if states not all within bounds, by default False
+        
+        Returns
+        -------
+        bool
+            True if all states are within bounds, False otherwise
+        """
+        u = self.model.states
+        lb = self.model.lower
+        ub = self.model.upper
+        lb_mask = self.model.lower_finite_mask
+        ub_mask = self.model.upper_finite_mask
+
+        feasible = np.all(np.logical_and(lb[lb_mask] < u[lb_mask], u[ub_mask] < ub[ub_mask]))
+
+        if raise_error and not feasible:
+            infeas_states = np.where(np.logical_or(lb[lb_mask] > u[lb_mask], u[ub_mask] > ub[ub_mask]))[0]
+            raise ValueError(f"State(s) {', '.join(str(s) for s in infeas_states)} are not within the specified bounds")
+
+        return feasible
+
     def setup(self):
         # Set the initial mu for the linear system and line search
         n_states = len(self.model.states)
@@ -181,6 +210,9 @@ class NewtonSolver(object):
                 "    /___/  /_/     /_/ |_/  \___/____/|__/ \__/  \n"
                 "                                                 \n"
             )
+
+        # Check that the states all start within the bounds
+        self._check_states(raise_error=True)
 
         # Get the options
         options = self.options
