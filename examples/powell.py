@@ -21,7 +21,7 @@ import os
 # Extension modules
 # ==============================================================================
 import ipnewt
-from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell, viz2D, vizNewt
+from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell, viz2D, vizNewt, IPLineSearch
 
 # ==============================================================================
 # External Python modules
@@ -41,7 +41,7 @@ save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots
 prob = NewtonSolver(options={"maxiter": 100, "tau": 1e3, "mu": 1e0})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
-prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
+prob.linesearch = IPLineSearch(options={"alpha max": 2.0, "beta": 2.0, "maxiter": 5})
 
 # Set the initial state values
 prob.model.states = np.array([14.9, 14.9])

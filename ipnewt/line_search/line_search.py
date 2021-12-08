@@ -298,10 +298,12 @@ class AdaptiveLineSearch(LineSearch):
 
         self.data["data"].append(recorder)
 
+
 class BoundsEnforceLineSearch(LineSearch):
     """
     A linesearch that performs vector bounds enforcement and that's it.
     """
+
     def __init__(self, options={}):
         """
         Valid bounds enforce linesearch options:
@@ -340,8 +342,191 @@ class BoundsEnforceLineSearch(LineSearch):
 
         if step_limited and self.options["iprint"] > 1:
             print(f"    + BE LS limited step by {(1 - np.linalg.norm(du)/np.linalg.norm(du_orig))*100}%")
-        
+
         recorder["alpha"].append(self.alpha)
+        self.data["data"].append(recorder)
+
+
+class IPLineSearch(LineSearch):
+    def __init__(self, options={}):
+        """
+        Valid backtracking linesearch options:
+            "beta": float (default = 2.0), bracketing expansion factor
+            "rho": float (default = 0.5), Illinois algorithm contraction factor
+            "root_method": string (default = "illinois"), Name of the root finding algorithm
+        """
+        super().__init__(options)
+        self._phi0 = None
+        self._dir_derivative = None
+        self.alpha = None
+
+        # Set options defaults
+        opt_defaults = {"beta": 2.0, "rho": 0.5, "root_method": "illinois"}
+
+        for opt in opt_defaults.keys():
+            if opt not in self.options.keys():
+                self.options[opt] = opt_defaults[opt]
+
+        self.data["options"] = self.options
+
+    def _objective(self, du):
+        """Computes the objective function for the linesearch.  If the
+        linesearch uses the penalized residual, this function will
+        compute the residual before the objective.
+
+        Returns
+        -------
+        float
+            Inner product between the Newton step and residual vectors.
+        float
+            L2 norm of the residual vector
+        """
+        if self.options["residual penalty"]:
+            u = self.model.states
+            lb = self.model.lower
+            ub = self.model.upper
+            lb_mask = self.model.lower_finite_mask
+            ub_mask = self.model.upper_finite_mask
+
+            penalty = np.zeros(u.size)
+
+            t_lower = u[lb_mask] - lb[lb_mask]
+            t_upper = ub[ub_mask] - u[ub_mask]
+
+            if t_lower.size > 0:
+                penalty[lb_mask] += np.sum(self.mu_lower * -np.log(t_lower + 1e-10))
+
+            if t_upper.size > 0:
+                penalty[ub_mask] += np.sum(self.mu_upper * -np.log(t_upper + 1e-10))
+
+            residuals = self.model.residuals + penalty
+        else:
+            residuals = self.model.residuals
+
+        return np.dot(du, residuals), np.linalg.norm(residuals)
+
+    def _start_solver(self, du, recorder):
+        """Initial iteration of the linesearch.  This method enforces
+        bounds on the first step and returns the objective function
+        value.
+
+        Parameters
+        ----------
+        du : array
+            Newton step vector
+
+        Returns
+        -------
+        float
+            Objective function value after bounds enforcement
+        """
+        self._iter_count = 0
+        s_b = 0.0  # Lower bracket step length
+        s_a = self.options["alpha"]  # Upper bracket step length
+        self.g_0, self._phi0 = self._objective(du)
+
+        # Record initial iteration
+        recorder["atol"].append(self._phi0)
+        recorder["alpha"].append(s_a)
+
+        # Print iteration
+        if self.options["iprint"] > 1:
+            print(f"    + Init LS: {self._iter_count} {self._phi0} {s_a}")
+
+        # Move the states the upper bracket step
+        self._update_states(s_a, du)
+
+        self._enforce_bounds(du, s_a)
+        self.model.run()
+
+        g_a, phi = self._objective(du)
+        self._iter_count += 1
+
+        recorder["atol"].append(phi)
+        recorder["alpha"].append(s_a)
+
+        # Construct the initial brackets
+        self.s_ab = [s_b, s_a]
+        self.g_ab = [self.g_0, g_a]
+
+        return phi
+
+    def _bracketing(self, du, recorder):
+        s_max = self.options["alpha max"]
+        beta = self.options["beta"]
+        maxiter = self.options["maxiter"]
+
+        while self.s_ab[1] < s_max and self._iter_count < maxiter and np.sign(self.g_ab[1]) * np.sign(self.g_ab[0]) > 0:
+            # Set the lower bracket equal to the upper bracket
+            self.s_ab[0], self.g_ab[0] = self.s_ab[1], self.g_ab[1]
+
+            # Update the upper brack step
+            self.s_ab[1] *= beta
+            s_rel = self.s_ab[1] - self.s_ab[0]
+
+            # Move the relative step between the bracket steps
+            self._update_states(s_rel, du)
+
+            # Enforce the bounds at the upper bracket step
+            self._enforce_bounds(du, self.s_ab[1])
+
+            self.model.run()
+
+            self.g_ab[1], phi = self._objective(du)
+            self._iter_count += 1
+
+            recorder["atol"].append(phi)
+            recorder["alpha"].append(self.s_ab[1])
+
+            print(f"    + IP BRKT LS: {self._iter_count} {phi} {self.s_ab[1]}")
+
+    def _illinois(self, du, recorder):
+        maxiter = self.options["maxiter"]
+        rho = self.options["rho"]
+
+        # 'g_k' is the value of the objective function at the current
+        # iteration.  We will always start the Illinois algorithm
+        # at the upper bracket.
+        g_k = self.g_ab[1]
+
+        while self._iter_count < maxiter and (
+            abs(g_k) > 0.5 * abs(self.g_0) or abs(self.s_ab[0] - self.s_ab[1]) > 0.25 * np.sum(self.s_ab)
+        ):
+            # Compute new root estimate using the regular-falsi method
+            s_k = self.s_ab[1] - self.g_ab[1] * ((self.s_ab[1] - self.s_ab[0]) / (self.g_ab[1] - self.g_ab[0]))
+
+            # Update states using the relative step between the new
+            # root guess and the previous root guess
+            self._update_states(s_k - self.s_ab[1], du)
+
+            self.model.run()
+
+            g_k, phi = self._objective(du)
+            self._iter_count += 1
+            recorder["atol"].append(phi)
+            recorder["alpha"].append(s_k)
+
+            # If the signs of the current and previous function value
+            # are the same, we want to contract the bracket by rho;
+            # otherwise, swap the bracket
+            if np.sign(g_k) * np.sign(self.g_ab[1]) > 0:
+                self.g_ab[0] *= rho
+            else:
+                self.s_ab[0], self.g_ab[0] = self.s_ab[1], self.g_ab[1]
+
+            # Update the upper bracket
+            self.s_ab[1], self.g_ab[1] = s_k, g_k
+
+            print(f"    + IP ILLNS LS: {self._iter_count} {phi} {s_k}")
+
+    def solve(self, du):
+        recorder = {"atol": [], "alpha": []}
+        self._start_solver(du, recorder)
+        self._bracketing(du, recorder)
+
+        if not np.sign(self.g_ab[1]) * np.sign(self.g_ab[0]) >= 0:
+            self._illinois(du, recorder)
+
         self.data["data"].append(recorder)
 
 
