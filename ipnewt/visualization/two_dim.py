@@ -202,3 +202,42 @@ def newton_path(ax, data, **kwargs):
     """
     states = np.array(data["states"])
     ax.plot(states[:, 0], states[:, 1], "-o", **kwargs)
+
+
+def newton_soln_viz(ax, model, data, xlim, iter=0, **kwargs):
+    """Plots the lines that are the intersection
+    with zero of the two planes of a 2D Newton step (each
+    plane is the linearized residual around the current states).
+
+    Parameters
+    ----------
+    ax : matplotlib axis object
+        Axis on which to plot the solver path.
+    model : ipnewt model
+        Model used to compute residuals and derivatives.
+    data : dict
+        NewtonSolver data attribute. The path and convergence
+        information is extracted from here.
+    xlim : two-element iterable
+        Lower and upper bounds to plot lines along the x-axis.
+    iter : int, optional
+        Iteration of solve from which to plot lines.
+    """
+    # Compute residual and Jacobian at desired point
+    u = data["states"][iter]
+    res = np.zeros(2)
+    J = np.zeros((2, 2))
+    model.compute_residuals(u, res)
+    model.compute_jacobian(u, J)
+
+    u_1 = np.linspace(*xlim, 3)
+
+    u_2_res_1 = J[0, 0] / J[0, 1] * (u[0] - u_1) + u[1] - res[0] / J[0, 1]
+    u_2_res_2 = J[1, 0] / J[1, 1] * (u[0] - u_1) + u[1] - res[1] / J[1, 1]
+
+    print(J[0, 0] / J[0, 1])
+    print(J[1, 0] / J[1, 1])
+    print(u_2_res_2)
+
+    ax.plot(u_1, u_2_res_1, '--', **kwargs)
+    ax.plot(u_1, u_2_res_2, **kwargs)
