@@ -77,7 +77,7 @@ class Model(object):
                 )
             self.upper = np.array(upper)
         else:
-            self.upper = -np.inf * np.ones(n_states)
+            self.upper = np.inf * np.ones(n_states)
 
         # Mask for bounds that are defined
         self.lower_finite_mask = np.isfinite(self.lower)
