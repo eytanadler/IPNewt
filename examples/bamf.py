@@ -38,7 +38,7 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
-prob = NewtonSolver(options={"maxiter": 1000, "tau": 1e-10, "mu": 1e0, "mu max": 1e100})
+prob = NewtonSolver(options={"maxiter": 1000, "tau": 1e-2, "mu": 1e0, "mu max": 1e100})
 prob.model = BAMF(options={"lower": 0.})
 prob.linear_system = LULinearSystem()
 prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
@@ -61,9 +61,9 @@ xlim = [-2, 21]
 ylim = [-2, 21]
 c = viz2D.contour(plt.gca(), prob.model, xlim, ylim, n_pts=500, levels=100, cmap="viridis")
 plt.colorbar(c, label=r"$\lVert r \rVert_2$")
-viz2D.contour(plt.gca(), prob.model, xlim, ylim, i_res=0, n_pts=200, levels=[0], colors="red")
-viz2D.contour(plt.gca(), prob.model, xlim, ylim, i_res=1, n_pts=200, levels=[0], colors="green")
 viz2D.bounds(plt.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
+viz2D.contour(plt.gca(), prob.model, xlim, ylim, i_res=0, n_pts=200, levels=[0], zorder=3, colors="red")
+viz2D.contour(plt.gca(), prob.model, xlim, ylim, i_res=1, n_pts=200, levels=[0], zorder=3, colors="green")
 viz2D.newton_path(plt.gca(), prob.data, c="white")
 plt.xlabel(r"$u_1$")
 plt.ylabel(r"$u_2$")
