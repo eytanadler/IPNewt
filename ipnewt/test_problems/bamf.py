@@ -23,11 +23,24 @@ from ipnewt.api import Model
 class BAMF(Model):
     """
     Defines the Bounded And Multimodal Function test problem (one we made up).
+
+    Options
+    =======
+    lower : float
+        Lower bound on all the states (default 0)
+    upper : float
+        Upper bound on all the states (default infinity)
     """
 
-    def __init__(self):
+    def __init__(self, options={}):
+        # Set options defaults
+        opt_defaults = {"lower": 0.0, "upper": 20.}
+        for opt in opt_defaults.keys():
+            if opt not in options.keys():
+                options[opt] = opt_defaults[opt]
+
         # Call the base class init with the correct number of states and bounds
-        super().__init__(2, lower=[-np.inf, 0.])
+        super().__init__(2, lower=options["lower"], upper=options["upper"], options=options)
 
     def compute_residuals(self, u, res):
         """

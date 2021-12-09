@@ -105,16 +105,20 @@ class NewtonSolver(object):
         return feasible
 
     def setup(self):
+        # Get the finite bound masks from the model
+        lb_mask = self.model.lower_finite_mask
+        ub_mask = self.model.upper_finite_mask
+
         # Set the initial mu for the linear system and line search
         n_states = len(self.model.states)
         if self.options["interior penalty"]:
-            self.linear_system.mu_lower = self.options["mu"]
-            self.linear_system.mu_upper = self.options["mu"]
+            self.linear_system.mu_lower = np.full(np.sum(lb_mask), self.options["mu"])
+            self.linear_system.mu_upper = np.full(np.sum(ub_mask), self.options["mu"])
             if self.linesearch:
-                self.linesearch.mu_lower = self.options["mu"]
-                self.linesearch.mu_upper = self.options["mu"]
-            self.mu_lower = np.full(n_states, self.options["mu"])
-            self.mu_upper = np.full(n_states, self.options["mu"])
+                self.linesearch.mu_lower = np.full(np.sum(lb_mask), self.options["mu"])
+                self.linesearch.mu_upper = np.full(np.sum(ub_mask), self.options["mu"])
+            self.mu_lower = np.full(np.sum(lb_mask), self.options["mu"])
+            self.mu_upper = np.full(np.sum(ub_mask), self.options["mu"])
 
         # Set the initial time step for the linear system
         if self.options["pseudo transient"]:
