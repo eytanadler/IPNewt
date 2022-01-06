@@ -452,7 +452,13 @@ class IPLineSearch(LineSearch):
         return phi
 
     def _bracketing(self, du, recorder):
-        s_max = self.options["alpha max"]
+        alpha_max = self.options["alpha max"]
+        du_bounded = np.copy(du)
+        _enforce_bounds_vector(
+            self.model.states + alpha_max * du, du_bounded, alpha_max, self.model.lower, self.model.upper
+        )
+        s_max = alpha_max * np.linalg.norm(du_bounded) / np.linalg.norm(du)
+
         beta = self.options["beta"]
         maxiter = self.options["maxiter"]
 
