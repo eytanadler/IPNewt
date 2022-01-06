@@ -21,7 +21,7 @@ import os
 # Extension modules
 # ==============================================================================
 import ipnewt
-from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell, viz2D, vizNewt, IPLineSearch
+from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell, viz2D, vizNewt, IPLineSearch  # noqa
 
 # ==============================================================================
 # External Python modules
@@ -38,13 +38,14 @@ plt.rcParams["text.latex.preamble"] = r"\usepackage{amsmath} \usepackage{cmbrigh
 save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots")
 
 # Set up problem
-prob = NewtonSolver(options={"maxiter": 100, "tau": 1e3, "mu": 1e0})
+prob = NewtonSolver(options={"maxiter": 100, "tau": 1e-1, "mu": 1e5, "SER": True})
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
 prob.linesearch = IPLineSearch(options={"alpha max": 2.0, "beta": 2.0, "maxiter": 5})
+# prob.linesearch = AdaptiveLineSearch()
 
 # Set the initial state values
-prob.model.states = np.array([14.9, 14.9])
+prob.model.states = np.array([14.9, -9.9])
 
 # Run the problem
 prob.setup()
@@ -84,7 +85,8 @@ fig, axs = plt.subplots(4, 1, figsize=[10, 15])
 vizNewt.convergence(axs[0], prob.data, "atol", color=niceColors["Blue"], marker="o")
 vizNewt.convergence(axs[1], prob.data, "rtol", color=niceColors["Red"], marker="o")
 vizNewt.pseudo_time_step(axs[2], prob.data, marker="o", color=niceColors["Green"])
-vizNewt.penalty_parameter(axs[3], prob.data, "mu upper", 1, color=niceColors["Yellow"], marker="o")
+vizNewt.penalty_parameter(axs[3], prob.data, "mu lower", 1, color=niceColors["Yellow"], marker="o")
+vizNewt.penalty_parameter(axs[3], prob.data, "mu upper", 1, color=niceColors["Blue"], marker="o")
 
 plt.savefig(os.path.join(save_dir, "powell_var_hist.pdf"))
 

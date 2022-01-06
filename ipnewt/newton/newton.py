@@ -41,6 +41,7 @@ class NewtonSolver(object):
                         0 = print nothing
                         1 = print convergence message
                         2 = print iteration history
+            "SER": if True (default), use switched evolution relaxation pseudo-transient adaptive method
         """
         self.model = None
         self._iter_count = 0
@@ -67,6 +68,7 @@ class NewtonSolver(object):
             "tau max": 1e20,
             "gamma": 2.0,
             "iprint": 2,
+            "SER": True,
         }
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -110,7 +112,6 @@ class NewtonSolver(object):
         ub_mask = self.model.upper_finite_mask
 
         # Set the initial mu for the linear system and line search
-        n_states = len(self.model.states)
         if self.options["interior penalty"]:
             self.linear_system.mu_lower = np.full(np.sum(lb_mask), self.options["mu"])
             self.linear_system.mu_upper = np.full(np.sum(ub_mask), self.options["mu"])
@@ -207,12 +208,13 @@ class NewtonSolver(object):
 
     def solve(self):
         if self.options["iprint"] > 0:
+            # "noqa" turns off flake8 linting for the logo
             print(
                 "\n    ____________________   __              _____ \n"
-                "    ____  _/__  __ \__  | / /_______      ___  /_\n"
-                "    __  / __  /_/ /_   |/ /_  _ \_ | /| / /  __/ \n"
+                "    ____  _/__  __ \__  | / /_______      ___  /_\n"  # noqa
+                "    __  / __  /_/ /_   |/ /_  _ \_ | /| / /  __/ \n"  # noqa
                 "    __/ /  _  ____/_  /|  / /  __/_ |/ |/ // /_  \n"
-                "    /___/  /_/     /_/ |_/  \___/____/|__/ \__/  \n"
+                "    /___/  /_/     /_/ |_/  \___/____/|__/ \__/  \n"  # noqa
                 "                                                 \n"
             )
 
@@ -237,6 +239,7 @@ class NewtonSolver(object):
 
         # Compute the initial residual norm
         phi0 = self._objective()
+        phi = phi0
         self.data["atol"].append(phi0)
         self.data["rtol"].append(1.0)
         if self.options["interior penalty"]:
@@ -250,7 +253,7 @@ class NewtonSolver(object):
         if self.options["iprint"] > 1:
             print(f"| NL Newton: {self._iter_count} {phi0}")
 
-        while self._iter_count <= max_iter:
+        while self._iter_count < max_iter:
             # Logic for a single Newton iteration
             if self._iter_count > 0:
                 # If interior penalty method is turned on, update the penalty parameters
@@ -262,13 +265,19 @@ class NewtonSolver(object):
                         self.linesearch.mu_lower = self.mu_lower
                         self.linesearch.mu_upper = self.mu_upper
 
-                # Geometrically update the pseduo transient term
+                # Update the pseduo transient term
                 if self.options["pseudo transient"]:
-                    self.linear_system.tau *= self.options["gamma"]
-                    if self.linear_system.tau > self.options["tau max"]:
-                        self.linear_system.tau = self.options["tau max"]
-                        if self.options["iprint"] > 1:
-                            print("Warning: Maximum pseudo transient time step reached.")
+                    # Switched evolution relaxation
+                    if self.options["SER"]:
+                        self.linear_system.tau = min(self.options["tau"] * phi0 / phi, self.options["tau max"])
+                    # Geometric
+                    else:
+                        self.linear_system.tau *= self.options["gamma"]
+
+                        if self.linear_system.tau > self.options["tau max"]:
+                            self.linear_system.tau = self.options["tau max"]
+                            if self.options["iprint"] > 1:
+                                print("Warning: Maximum pseudo transient time step reached.")
 
                 # Run the model and update the linear system
                 model.run()
@@ -298,6 +307,7 @@ class NewtonSolver(object):
             if self.options["iprint"] > 1:
                 print(f"| NL Newton: {self._iter_count} {phi} {phi/phi0}")
 
+            # Record solver data
             self.data["atol"].append(phi)
             self.data["rtol"].append(phi / phi0)
             if self.options["interior penalty"]:
