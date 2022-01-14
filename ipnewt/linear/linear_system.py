@@ -37,6 +37,7 @@ class LinearSystem(object):
         self.tau = None
         self.du = None
         self.options = copy.deepcopy(options)
+        self.data = {"penalty_vector": None, "pt_vector": None, "jacobian": None}
 
         # Set option defaults if not already defined
         opt_defaults = {"pseudo transient": True, "jacobian penalty": True, "residual penalty": True}
@@ -54,6 +55,7 @@ class LinearSystem(object):
         # Get the residuals and Jacobian from the model
         self.residuals = self.model.residuals.copy()
         self.jacobian = self.model.jacobian.copy()
+        self.data["jacobian"] = self.jacobian.copy()
 
         # Add extra terms if the options say so
         if self.options["pseudo transient"]:
@@ -69,7 +71,8 @@ class LinearSystem(object):
         """
         Add pseudo transient component to Jacobian.
         """
-        self.jacobian += np.identity(self.jacobian.shape[0], dtype=float) * (1 / self.tau)
+        self.data["pt_vector"] = self.tau.copy()
+        self.jacobian += np.diag(1 / self.tau)
 
     def update_penalty_jacobian(self):
         """
@@ -100,6 +103,8 @@ class LinearSystem(object):
 
         if t_upper.size > 0:
             dp_du[ub_mask] = -self.mu_upper / (t_upper + 1e-10)
+
+        self.data["penalty_vector"] = dp_du.copy()
 
         # Add the penalty jacobian to the problem jacobian
         self.jacobian += np.diag(dp_du)

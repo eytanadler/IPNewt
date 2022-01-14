@@ -204,7 +204,7 @@ def newton_path(ax, data, **kwargs):
     ax.plot(states[:, 0], states[:, 1], "-o", **kwargs)
 
 
-def newton_soln_viz(ax, model, data, xlim, iter=0, **kwargs):
+def newton_soln_viz(ax, model, data, xlim, iter=0, penalty=False, pt=False, **kwargs):
     """Plots the lines that are the intersection
     with zero of the two planes of a 2D Newton step (each
     plane is the linearized residual around the current states).
@@ -229,15 +229,37 @@ def newton_soln_viz(ax, model, data, xlim, iter=0, **kwargs):
     J = np.zeros((2, 2))
     model.compute_residuals(u, res)
     model.compute_jacobian(u, J)
+    if penalty:
+        dp_du = data["linear_data"][iter]["penalty_vector"]
+        J += np.diag(dp_du)
 
-    u_1 = np.linspace(*xlim, 3)
+    if pt:
+        tau = data["linear_data"][iter]["pt_vector"]
+        J += np.diag(tau)
+
+    u_1 = np.linspace(*xlim, 2)
 
     u_2_res_1 = J[0, 0] / J[0, 1] * (u[0] - u_1) + u[1] - res[0] / J[0, 1]
     u_2_res_2 = J[1, 0] / J[1, 1] * (u[0] - u_1) + u[1] - res[1] / J[1, 1]
 
-    print(J[0, 0] / J[0, 1])
-    print(J[1, 0] / J[1, 1])
-    print(u_2_res_2)
+    ymin = min(np.minimum(u_2_res_1, u_2_res_2))
+    ymax = max(np.maximum(u_2_res_1, u_2_res_2))
 
-    ax.plot(u_1, u_2_res_1, '--', **kwargs)
+    u1_grid, u2_grid = np.meshgrid(np.linspace(*xlim, 100), np.linspace(ymin, ymax, 100))
+    lin_res_1 = J[0, 0] * (u1_grid - u[0]) + J[0, 1] * (u2_grid - u[1]) + res[0]
+    lin_res_2 = J[1, 0] * (u1_grid - u[0]) + J[1, 1] * (u2_grid - u[1]) + res[1]
+    lin_res_norm = np.sqrt(lin_res_1 ** 2 + lin_res_2 ** 2)
+    ax.contour(u1_grid, u2_grid, lin_res_norm, 100)
+
+    # print(J[0, 0] / J[0, 1])
+    # print(J[1, 0] / J[1, 1])
+    # print(u_2_res_2)
+
+    du = np.linalg.solve(J, -res)
+    u = u + du
+    ax.scatter(*u)
+
+    ax.plot(u_1, u_2_res_1, "--", **kwargs)
     ax.plot(u_1, u_2_res_2, **kwargs)
+
+    ax.set_ylim([-10, 15])

@@ -112,3 +112,27 @@ def pseudo_time_step(ax, data, **kwargs):
     ax.set_yscale("log")
     ax.set_ylabel(r"$\Delta\tau^k$", rotation="horizontal", horizontalalignment="right")
     ax.set_xlabel("Iterations")
+
+
+def condition_number(ax, data, penalty=False, pt=False, **kwargs):
+    len_data = len(data["linear_data"])
+    J = [data["linear_data"][i]["jacobian"] for i in range(len_data)]
+    if penalty:
+        for i in range(len_data):
+            J[i] += np.diag(data["linear_data"][i]["penalty_vector"])
+    if pt:
+        for i in range(len_data):
+            J[i] += np.diag(1 / data["linear_data"][i]["pt_vector"])
+
+    cond_nums = list(map(np.linalg.cond, J))
+
+    ax.semilogy(np.arange(0, len_data, 1), cond_nums, **kwargs)
+
+
+def step_size(ax, data, **kwargs):
+    len_data = len(data["linear_data"])
+    step_size = np.zeros(len_data - 1)
+    for i in range(len_data - 1):
+        step_size[i] = np.linalg.norm(data["states"][i + 1] - data["states"][i])
+
+    ax.semilogy(np.arange(1, len_data, 1), step_size, **kwargs)

@@ -50,7 +50,7 @@ class NewtonSolver(object):
         self.linear_system = None
         self.mu_lower = None
         self.mu_upper = None
-        self.data = {"atol": [], "rtol": [], "mu lower": [], "mu upper": [], "tau": [], "states": []}
+        self.data = {"atol": [], "rtol": [], "mu lower": [], "mu upper": [], "tau": [], "states": [], "linear_data": []}
 
         # Set options defaults
         opt_defaults = {
@@ -123,7 +123,7 @@ class NewtonSolver(object):
 
         # Set the initial time step for the linear system
         if self.options["pseudo transient"]:
-            self.linear_system.tau = self.options["tau"]
+            self.linear_system.tau = np.full(len(self.model.states), self.options["tau"])
 
         # Set options for the linear system
         self.linear_system.options["jacobian penalty"] = self.options["interior penalty"]
@@ -212,7 +212,7 @@ class NewtonSolver(object):
             print(
                 "\n    ____________________   __              _____ \n"
                 "    ____  _/__  __ \__  | / /_______      ___  /_\n"  # noqa
-                "    __  / __  /_/ /_   |/ /_  _ \_ | /| / /  __/ \n"  # noqa
+                "    ___  / __  /_/ /_   |/ /_  _ \_ | /| / /  __/ \n"  # noqa
                 "    __/ /  _  ____/_  /|  / /  __/_ |/ |/ // /_  \n"
                 "    /___/  /_/     /_/ |_/  \___/____/|__/ \__/  \n"  # noqa
                 "                                                 \n"
@@ -246,7 +246,7 @@ class NewtonSolver(object):
             self.data["mu lower"].append(self.mu_lower.copy())
             self.data["mu upper"].append(self.mu_upper.copy())
         if self.options["pseudo transient"]:
-            self.data["tau"].append(self.linear_system.tau)
+            self.data["tau"].append(self.linear_system.tau.copy())
         self.data["states"].append(self.model.states)
 
         # Print the solver info
@@ -269,21 +269,27 @@ class NewtonSolver(object):
                 if self.options["pseudo transient"]:
                     # Switched evolution relaxation
                     if self.options["SER"]:
-                        self.linear_system.tau = min(self.options["tau"] * phi0 / phi, self.options["tau max"])
+                        self.linear_system.tau = self.full(
+                            len(self.model.states), min(self.options["tau"] * phi0 / phi, self.options["tau max"])
+                        )
                     # Geometric
                     else:
                         self.linear_system.tau *= self.options["gamma"]
 
-                        if self.linear_system.tau > self.options["tau max"]:
-                            self.linear_system.tau = self.options["tau max"]
-                            if self.options["iprint"] > 1:
-                                print("Warning: Maximum pseudo transient time step reached.")
+                        if self.options["iprint"] > 1 and np.any(self.linear_system.tau > self.options["tau max"]):
+                            print("Warning: Maximum pseudo transient time step reached.")
+
+                        self.linear_system.tau[self.linear_system.tau > self.options["tau max"]] = self.options[
+                            "tau max"
+                        ]
 
                 # Run the model and update the linear system
                 model.run()
                 self.linear_system.update()
 
             # Solve the linear system
+            self.data["linear_data"].append(self.linear_system.data.copy())
+            print(np.linalg.cond(self.linear_system.jacobian))
             self.linear_system.factorize()
             self.linear_system.solve()
 
@@ -314,7 +320,7 @@ class NewtonSolver(object):
                 self.data["mu lower"].append(self.mu_lower.copy())
                 self.data["mu upper"].append(self.mu_upper.copy())
             if self.options["pseudo transient"]:
-                self.data["tau"].append(self.linear_system.tau)
+                self.data["tau"].append(self.linear_system.tau.copy())
             self.data["states"].append(self.model.states)
 
             # Check the convergence tolerances

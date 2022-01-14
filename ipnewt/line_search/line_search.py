@@ -224,6 +224,7 @@ class AdaptiveLineSearch(LineSearch):
 
         # Decrease alpha max to go exactly to the bounds if it would otherwise violate them
         # TODO: this is not the smartest way of doing this, make it better bro
+        # This is elite, pogchamp
         du_bounded = np.copy(du)
         _enforce_bounds_vector(
             self.model.states + alpha_max * du, du_bounded, alpha_max, self.model.lower, self.model.upper
@@ -484,7 +485,8 @@ class IPLineSearch(LineSearch):
             recorder["atol"].append(phi)
             recorder["alpha"].append(self.s_ab[1])
 
-            print(f"    + IP BRKT LS: {self._iter_count} {phi} {self.s_ab[1]}")
+            if self.options["iprint"] > 1:
+                print(f"    + IP BRKT LS: {self._iter_count} {phi} {self.s_ab[1]}")
 
     def _illinois(self, du, recorder):
         maxiter = self.options["maxiter"]
@@ -523,7 +525,8 @@ class IPLineSearch(LineSearch):
             # Update the upper bracket
             self.s_ab[1], self.g_ab[1] = s_k, g_k
 
-            print(f"    + IP ILLNS LS: {self._iter_count} {phi} {s_k}")
+            if self.options["iprint"] > 1:
+                print(f"    + IP ILLNS LS: {self._iter_count} {phi} {s_k}")
 
     def solve(self, du):
         recorder = {"atol": [], "alpha": []}
