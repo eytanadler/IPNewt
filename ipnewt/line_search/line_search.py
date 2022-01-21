@@ -41,7 +41,13 @@ class LineSearch(object):
         self.data = {"data": []}
 
         # Set options defaults
-        opt_defaults = {"alpha": 1.0, "maxiter": 2, "residual penalty": True, "alpha max": 2.0, "iprint": 2}
+        opt_defaults = {
+            "alpha": 1.0,
+            "maxiter": 2,
+            "residual penalty": True,
+            "alpha max": 10.0,
+            "iprint": 2,
+        }
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -120,6 +126,7 @@ class AdaptiveLineSearch(LineSearch):
         Valid backtracking linesearch options:
             "c": float (default = 0.1), armijo-goldstein curvature parameter
             "rho": float (default=0.5), geometric multiplier for the step length
+            "FT_factor": factor by which to multiply alpha when forward tracking
         """
         super().__init__(options)
         self._phi0 = None
@@ -127,7 +134,7 @@ class AdaptiveLineSearch(LineSearch):
         self.alpha = None
 
         # Set options defaults
-        opt_defaults = {"c": 0.1, "rho": 0.5}
+        opt_defaults = {"c": 0.1, "rho": 0.5, "FT_factor": 2.0}
 
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -162,7 +169,7 @@ class AdaptiveLineSearch(LineSearch):
         recorder["atol"].append(phi0)
         recorder["alpha"].append(self.alpha)
         if self.options["iprint"] > 1:
-            print(f"    + Init LS: {self._iter_count} {phi0} {self.alpha}")
+            print(f"    + Init LS: {self._iter_count} {phi0} 0.0")
         use_fwd_track = False
         if phi0 == 0.0:
             phi0 = 1.0
@@ -218,6 +225,7 @@ class AdaptiveLineSearch(LineSearch):
         return fval0 + (1 - c1) * alpha * df_dalpha <= fval <= fval0 + c1 * alpha * df_dalpha
 
     def _forward_track(self, du, phi, recorder):
+        recorder["mode"] = "fwd"
         phi1 = phi
 
         alpha_max = self.options["alpha max"]
@@ -231,29 +239,30 @@ class AdaptiveLineSearch(LineSearch):
         )
         alpha_max *= np.linalg.norm(du_bounded) / np.linalg.norm(du)
 
-        alphas = np.linspace(self.alpha, alpha_max, 4)
-
-        for i, alpha in enumerate(alphas[1:]):
-            self._update_states(alpha - alphas[i], du)
+        while self.alpha < alpha_max:
+            # Forward track to the next alpha
+            new_alpha = self.options["FT_factor"] * self.alpha
+            self._update_states(new_alpha - self.alpha, du)
             self.model.run()
             phi2 = self._objective()
             self._iter_count += 1
             recorder["atol"].append(phi2)
-            recorder["alpha"].append(alpha)
+            recorder["alpha"].append(new_alpha)
+
             if self.options["iprint"] > 1:
-                print(f"    + FT LS: {self._iter_count} {phi2} {alpha}")
+                print(f"    + FT LS: {self._iter_count} {phi2} {new_alpha}")
 
             if phi2 >= phi1:
                 self._iter_count += 1
-                self._update_states(alphas[i] - alpha, du)
+                self._update_states(self.alpha - new_alpha, du)
                 self.model.run()
                 recorder["atol"].append(phi1)
-                recorder["alpha"].append(alphas[i])
+                recorder["alpha"].append(self.alpha)
                 if self.options["iprint"] > 1:
-                    print(f"    + FT LS: {self._iter_count} {phi1} {alphas[i]}")
+                    print(f"    + FT LS: {self._iter_count} {phi1} {self.alpha}")
                 break
-
-            phi1 = phi2
+            else:
+                self.alpha = new_alpha
 
     def _back_track(self, du, phi, maxiter, recorder):
         rho = self.options["rho"]
@@ -285,7 +294,7 @@ class AdaptiveLineSearch(LineSearch):
         du : array
             Newton step vector
         """
-        recorder = {"atol": [], "alpha": []}
+        recorder = {"atol": [], "alpha": [], "mode": "ag"}
         phi, use_fwd_track = self._start_solver(du, recorder)
 
         if use_fwd_track:

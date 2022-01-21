@@ -33,7 +33,7 @@ class NewtonSolver(object):
             "mu max": float (default=1e6), maximum penalty parameter
             "tau": float (default=0.1), initial psuedo transient time step
             "tau max": float (default=1e20), maximum psuedo transient time step
-            "gamma": float (default=2.0), pseudo transient time step geometric multiplier
+            "gamma": float (default=2.0), pseudo transient time step geometric multiplier or 
             "pseudo transient" : if True (default), add the pseudo transient term to the Jacobian
             "interior penalty" : if True (default), add logarithmic penalty to Jacobian
             "residual penalty" : if False (default), add logarithmic penalty to residual vector
@@ -41,7 +41,11 @@ class NewtonSolver(object):
                         0 = print nothing
                         1 = print convergence message
                         2 = print iteration history
-            "SER": if True (default), use switched evolution relaxation pseudo-transient adaptive method
+            "pt_adapt": pseudo-transient adaptation method
+                        geo (default) = geometrically increase tau
+                        SER = switched evolution relaxation pseudo-transient adaptive method
+                        LS = adapt based on the line search step size
+
         """
         self.model = None
         self._iter_count = 0
@@ -50,7 +54,16 @@ class NewtonSolver(object):
         self.linear_system = None
         self.mu_lower = None
         self.mu_upper = None
-        self.data = {"atol": [], "rtol": [], "mu lower": [], "mu upper": [], "tau": [], "states": [], "linear_data": []}
+        self.data = {
+            "atol": [],
+            "rtol": [],
+            "mu lower": [],
+            "mu upper": [],
+            "tau": [],
+            "states": [],
+            "linear_data": [],
+            "linesearch_data": {},
+        }
 
         # Set options defaults
         opt_defaults = {
@@ -68,7 +81,7 @@ class NewtonSolver(object):
             "tau max": 1e20,
             "gamma": 2.0,
             "iprint": 2,
-            "SER": True,
+            "pt_adapt": "geo",
         }
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -268,10 +281,12 @@ class NewtonSolver(object):
                 # Update the pseduo transient term
                 if self.options["pseudo transient"]:
                     # Switched evolution relaxation
-                    if self.options["SER"]:
+                    if self.options["pt_adapt"] == "SER":
                         self.linear_system.tau = self.full(
                             len(self.model.states), min(self.options["tau"] * phi0 / phi, self.options["tau max"])
                         )
+                    elif self.options["pt_adapt"] == "LS":
+                        self.linear_system.tau *= self.options["gamma"] * self.linesearch.alpha
                     # Geometric
                     else:
                         self.linear_system.tau *= self.options["gamma"]
@@ -322,6 +337,7 @@ class NewtonSolver(object):
             if self.options["pseudo transient"]:
                 self.data["tau"].append(self.linear_system.tau.copy())
             self.data["states"].append(self.model.states)
+            self.data["linesearch_data"] = self.linesearch.data
 
             # Check the convergence tolerances
             if phi < atol:
