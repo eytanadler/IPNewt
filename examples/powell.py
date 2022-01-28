@@ -21,7 +21,16 @@ import os
 # Extension modules
 # ==============================================================================
 import ipnewt
-from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, Powell, viz2D, vizNewt, IPLineSearch  # noqa
+from ipnewt.api import (
+    NewtonSolver,
+    LULinearSystem,
+    AdaptiveLineSearch,
+    Powell,
+    viz2D,
+    vizNewt,
+    IPLineSearch,
+    BracketingLineSearch,
+)  # noqa
 
 # ==============================================================================
 # External Python modules
@@ -48,7 +57,8 @@ prob = NewtonSolver(
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
 # prob.linesearch = IPLineSearch(options={"iprint": 2, "alpha max": 100.0, "beta": 2.0, "maxiter": 5})
-prob.linesearch = AdaptiveLineSearch(options={"iprint": 2, "alpha max": 100.0, "rho": 0.7, "FT_factor": 2.0})
+# prob.linesearch = AdaptiveLineSearch(options={"iprint": 2, "alpha max": 100.0, "rho": 0.7, "FT_factor": 2.0})
+prob.linesearch = BracketingLineSearch(options={"maxiter": 3})
 
 # Set the initial state values
 prob.model.states = np.array([14.9, 14.9])
