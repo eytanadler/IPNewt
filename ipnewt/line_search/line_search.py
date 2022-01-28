@@ -576,6 +576,10 @@ class BracketingLineSearch(LineSearch):
         bounds on the first step and returns the objective function
         value.
 
+        Sets self.options["alpha max"] to the minimum of the value
+        set in the option and the alpha that would hit a bound. Does
+        NOT modify du.
+
         Parameters
         ----------
         du : array
@@ -583,10 +587,10 @@ class BracketingLineSearch(LineSearch):
 
         Returns
         -------
-        int
+        bool
             Exit code to tell the bracketing what to do. The possible values are
                 0: expand the bracket forward
-                1: expand the bracket backward
+                1: bracketed on the first try (enter pinpointing directly)
                 2: hit bound without bracketing a minimum
         """
         # Exit codes
@@ -594,11 +598,43 @@ class BracketingLineSearch(LineSearch):
         bak = 1
         bnd = 2
 
-        du_orig = du.copy()
+        # Initialization of some variables
         self._iter_count = 0
-        self.alpha = (
-            1.0 / self.options["beta"]
-        )  # 1/beta so after one fwd track iter forms 3 points in alpha from 0 to 1
+        self.alpha = 1.  # start the search with the full Newton step
+        buffer = 1e-12  # buffer by which to pull alpha max away from the bound (absolute magnitude in states)
+
+        # ------------------ Limit alpha max to satisfy bounds ------------------
+        # Limit alpha max to find the value that will prevent the line search
+        # from exceeding bounds and from exceeding the specified alpha max
+        d_alpha = 0  # required change in step size, relative to the du vector
+        u = self.model.states + du * self.options["alpha max"]
+
+        # Find the largest amount a bound is violated
+        # where positive means a bound is violated - i.e. the required d_alpha.
+        mask = du != 0
+        if mask.any():
+            abs_du_mask = np.abs(du[mask] * self.options["alpha max"])
+            u_mask = u[mask]
+
+            # Check lower bound
+            if self.model.lower is not None:
+                max_d_alpha = np.amax((self.model.lower[mask] - u_mask) / abs_du_mask)
+                if max_d_alpha > d_alpha:
+                    d_alpha = max_d_alpha
+
+            # Check upper bound
+            if self.model.upper is not None:
+                max_d_alpha = np.amax((u_mask - self.model.upper[mask]) / abs_du_mask)
+                if max_d_alpha > d_alpha:
+                    d_alpha = max_d_alpha
+
+        # Adjust alpha_max so that it goes right to the most restrictive bound,
+        # but pull it away from the bound by a small amount so the penalty isn't NaN
+        if d_alpha > 0:
+            self.options["alpha max"] *= 1 - d_alpha
+            self.options["alpha max"] -= buffer / np.linalg.norm(du)
+
+        # ------------------ Set up and evaluate the first point ------------------
         self.bracket_low = {"alpha": 0, "phi": None}
         self.bracket_high = {"alpha": copy(self.alpha), "phi": None}
         self.bracket_mid = {"alpha": None, "phi": None}  # will depend on the objective at 1/beta
@@ -610,17 +646,17 @@ class BracketingLineSearch(LineSearch):
         if self.options["iprint"] > 1:
             print(f"    + Init LS: {self._iter_count} {self._phi0} 0.0")
 
-        # Move the states to the first alpha (1/beta)
-        self._update_states(self.alpha, du)
+        # Check that it doesn't exceed alpha max
+        bounds_enforced = False
+        if self.alpha > self.options["alpha max"]:
+            bounds_enforced = True
+            self.alpha = self.bracket_high["alpha"] = self.options["alpha max"]
 
-        bounds_enforced = self._enforce_bounds(du, self.alpha)
+        # Move the states to the first alpha
+        self._update_states(self.alpha, du)
         self.model.run()
         self.phi = self.bracket_high["phi"] = self._objective()
         self._iter_count += 1
-
-        # If the bound pulled back the step with an alpha of 1/beta, compute the new alpha
-        if bounds_enforced:
-            self.alpha = self.bracket_high["alpha"] = np.linalg.norm(du) / np.linalg.norm(du_orig)
 
         recorder["atol"].append(self.phi)
         recorder["alpha"].append(self.alpha)
@@ -628,10 +664,9 @@ class BracketingLineSearch(LineSearch):
         if self.options["iprint"] > 1:
             print(f"    + Bracket LS: {self._iter_count} {self.phi} {self.alpha}")
 
-        # If phi at alpha=1/beta (or whatever the bound enforcement limited it to) is greater than the original,
+        # If phi at the first alpha is greater than at the original point,
         # there's a minimum between alpha of 0 and the current alpha
         if self.bracket_high["phi"] >= self._phi0:
-            self.bracket_mid["alpha"] = self.bracket_high["alpha"] / self.options["beta"]
             return bak
         # If it's less than the original phi and it's not on a bound, search forward
         if not bounds_enforced:
@@ -649,7 +684,12 @@ class BracketingLineSearch(LineSearch):
         bool
             True if bound is hit without bracketing, false otherwise
         """
-        du_orig = du.copy()  # original du (Newton step, alpha = 1)
+        # If a bound is hit or alpha max is reached, this will be set to true
+        bound_hit = False
+
+        if self.bracket_high["alpha"] > self.options["alpha max"]:
+            bound_hit = True
+            self.bracket_high["alpha"] = self.options["alpha max"]
 
         # Initialize the high bracket's phi
         self._update_states(self.bracket_high["alpha"] - self.alpha, du)
@@ -664,12 +704,17 @@ class BracketingLineSearch(LineSearch):
         if self.options["iprint"] > 1:
             print(f"    + Bracket fwd LS: {self._iter_count} {self.phi} {self.alpha}")
 
-        # If a bound is hit or alpha max is reached, this will be set to true
-        bound_hit = False
-
         # Keep forward tracking the bracket until a minimum has been bracketed
         # It is possible that forward bracketing hits a bound before bracketing or
         while self.bracket_mid["phi"] > self.bracket_high["phi"] or self.bracket_mid["phi"] > self.bracket_low["phi"]:
+            # If the max number of iterations has been reached, break out and return the value
+            if self._iter_count >= self.options["maxiter"]:
+                if self.options["iprint"] > 0:
+                    print(
+                        f"    + Bracket fwd LS reached maximum iterations of {self.options['maxiter']}"
+                    )
+                return True
+
             # If a bound has been hit and it makes it this far, it means it has not been bracketed
             if bound_hit:
                 if self.options["iprint"] > 0:
@@ -682,21 +727,15 @@ class BracketingLineSearch(LineSearch):
             self.bracket_low = deepcopy(self.bracket_mid)
             self.bracket_mid = deepcopy(self.bracket_high)
             self.bracket_high["alpha"] *= self.options["beta"]
+
+            # Limit the step if necessary
+            if self.alpha > self.options["alpha max"]:
+                bound_hit = True
+                self.bracket_high["alpha"] = self.options["alpha max"]
+
+            # Move the states to the new alpha
             self._update_states(self.bracket_high["alpha"] - self.alpha, du)
             self.alpha = self.bracket_high["alpha"]
-
-            # Enforce the bounds and compute the new alpha (if necessary)
-            bound_hit = self._enforce_bounds(du, self.alpha)
-
-            # If the bound pulled back the step, compute the new alpha
-            if bound_hit:
-                self.alpha = self.bracket_high["alpha"] = np.linalg.norm(du) / np.linalg.norm(du_orig)
-
-            # If alpha surpassed alpha max, limit it and set the bound_hit to true
-            if self.alpha > self.options["alpha max"]:
-                self._update_states(self.options["alpha max"] - self.alpha, du)
-                self.alpha = self.bracket_high["alpha"] = self.options["alpha max"]
-                bound_hit = True
 
             self.model.run()
             self.phi = self.bracket_high["phi"] = self._objective()
@@ -707,42 +746,9 @@ class BracketingLineSearch(LineSearch):
 
             if self.options["iprint"] > 1:
                 print(f"    + Bracket fwd LS: {self._iter_count} {self.phi} {self.alpha}")
-
-    def _bak_bracketing(self, du, recorder):
-        # Initialize the middle bracket's phi
-        self._update_states(self.bracket_mid["alpha"] - self.alpha, du)
-        self.alpha = self.bracket_mid["alpha"]
-        self.model.run()
-        self.phi = self.bracket_mid["phi"] = self._objective()
-        self._iter_count += 1
-
-        recorder["atol"].append(self.phi)
-        recorder["alpha"].append(self.alpha)
-
-        if self.options["iprint"] > 1:
-            print(f"    + Bracket back LS: {self._iter_count} {self.phi} {self.alpha}")
-
-        # Keep back tracking the bracket until a minimum has been bracketed
-        # Since the Newton solver is searching in a downhill direction (at least locally),
-        # and the high bracket at the start of the bracketing has a phi greater than
-        # the original, this should be guaranteed to bracket a minimum.
-        while self.bracket_mid["phi"] > self.bracket_high["phi"] or self.bracket_mid["phi"] > self.bracket_low["phi"]:
-            # The mid bracket becomes the high and the new mid is found
-            self.bracket_high = deepcopy(self.bracket_mid)
-            self.bracket_mid["alpha"] /= self.options["beta"]
-
-            # Evaluate at the new mid
-            self._update_states(self.bracket_mid["alpha"] - self.alpha, du)
-            self.alpha = self.bracket_mid["alpha"]
-            self.model.run()
-            self.phi = self.bracket_mid["phi"] = self._objective()
-            self._iter_count += 1
-
-            recorder["atol"].append(self.phi)
-            recorder["alpha"].append(self.alpha)
-
-            if self.options["iprint"] > 1:
-                print(f"    + Bracket back LS: {self._iter_count} {self.phi} {self.alpha}")
+        
+        # It has successfully bracketed
+        return False
 
     def _brent(self, du, tol, recorder):
         # Set the golden ratio
@@ -866,18 +872,15 @@ class BracketingLineSearch(LineSearch):
             # Run the forward bracketing, if it hits a bound, skip pinpointing
             if self._fwd_bracketing(du, recorder):
                 return
-        else:
-            self._bak_bracketing(du, recorder)
 
-        # PINPOINTING GOES HERE
-        # Use self.bracket_low, self.bracket_mid, and self.bracket_high (each is a dictionary with alpha and phi)
+        # Pinpointing stage (self.bracket_mid may or may not be initialized)
         self._brent(du, 1e-3, recorder)
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
 # I didn't feel like re-writing this code.
 # link: https://github.com/OpenMDAO/OpenMDAO/blob/master/openmdao/solvers/linesearch/backtracking.py
-def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds, buffer=1e-13):
+def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds, buffer=0.):
     """
     Enforce lower/upper bounds, backtracking the entire vector together.
     This method modifies both self (u) and step (du) in-place.
