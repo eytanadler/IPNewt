@@ -37,7 +37,7 @@ class LineSearch(object):
         self.mu_lower = None
         self.mu_upper = None
         self._iter_count = 0
-        self.options = copy.deepcopy(options)
+        self.options = deepcopy(options)
         self.data = {"data": []}
 
         # Set options defaults
@@ -596,11 +596,13 @@ class BracketingLineSearch(LineSearch):
 
         du_orig = du.copy()
         self._iter_count = 0
-        self.alpha = 1. / self.options["beta"]  # 1/beta so after one fwd track iter forms 3 points in alpha from 0 to 1
+        self.alpha = (
+            1.0 / self.options["beta"]
+        )  # 1/beta so after one fwd track iter forms 3 points in alpha from 0 to 1
         self.bracket_low = {"alpha": 0, "phi": None}
         self.bracket_high = {"alpha": copy(self.alpha), "phi": None}
         self.bracket_mid = {"alpha": None, "phi": None}  # will depend on the objective at 1/beta
-        self._phi0 = self.bracket_low["phi"] = self._objective(du)
+        self._phi0 = self.bracket_low["phi"] = self._objective()
         recorder["atol"].append(self._phi0)
         recorder["alpha"].append(0)
 
@@ -647,7 +649,7 @@ class BracketingLineSearch(LineSearch):
         bool
             True if bound is hit without bracketing, false otherwise
         """
-        du_orig = du / self.alpha  # original du (Newton step, alpha = 1)
+        du_orig = du.copy()  # original du (Newton step, alpha = 1)
 
         # Initialize the high bracket's phi
         self._update_states(self.bracket_high["alpha"] - self.alpha, du)
@@ -666,12 +668,14 @@ class BracketingLineSearch(LineSearch):
         bound_hit = False
 
         # Keep forward tracking the bracket until a minimum has been bracketed
-        # It is possible that forward bracketing hits a bound before bracketing or 
+        # It is possible that forward bracketing hits a bound before bracketing or
         while self.bracket_mid["phi"] > self.bracket_high["phi"] or self.bracket_mid["phi"] > self.bracket_low["phi"]:
             # If a bound has been hit and it makes it this far, it means it has not been bracketed
             if bound_hit:
                 if self.options["iprint"] > 0:
-                    print(f"    + Bracket fwd LS hit a bound or alpha max without bracketing a minimum, so returning states on bound")
+                    print(
+                        "    + Bracket fwd LS hit a bound or alpha max without bracketing a minimum, so returning states on bound"
+                    )
                 return True
 
             # Shift the brackets over and compute the alpha for the new high
@@ -687,7 +691,7 @@ class BracketingLineSearch(LineSearch):
             # If the bound pulled back the step, compute the new alpha
             if bound_hit:
                 self.alpha = self.bracket_high["alpha"] = np.linalg.norm(du) / np.linalg.norm(du_orig)
-            
+
             # If alpha surpassed alpha max, limit it and set the bound_hit to true
             if self.alpha > self.options["alpha max"]:
                 self._update_states(self.options["alpha max"] - self.alpha, du)
@@ -740,19 +744,121 @@ class BracketingLineSearch(LineSearch):
             if self.options["iprint"] > 1:
                 print(f"    + Bracket back LS: {self._iter_count} {self.phi} {self.alpha}")
 
+    def _brent(self, du, tol, recorder):
+        # Set the golden ratio
+        maxiter = self.options["maxiter"]
+        c = (3 - 5 ** (1 / 2)) / 2
+        eps = 1e-10
+        e = 0
+        d = 0
+
+        # Set the upper and lower bracket step sizes
+        a = min(self.bracket_low["alpha"], self.bracket_high["alpha"])
+        b = max(self.bracket_low["alpha"], self.bracket_high["alpha"])
+
+        # Set the midpoint step and objective value
+        bx = self.bracket_mid["alpha"]
+        fbx = self.bracket_mid["alpha"]
+
+        # Initialize v, w, x, fv, fw, and fx
+        v = w = x = bx
+        fv = fw = fx = fbx
+
+        # Loop until reaching the maximum number of iterations
+        while self._iter_count < maxiter:
+            m = 0.5 * (b + a)  # Start with bisection
+            tol1 = tol * abs(x) + eps
+            tol2 = 2 * tol1
+
+            if abs(x - m) > tol2 - 0.5 * (b - a):
+                p = q = r = 0
+                if abs(e) > tol:
+                    # Fit parabola
+                    r = (x - w) * (fx - fv)
+                    q = (x - v) * (fx - fw)
+                    p = (x - v) * q - (x - w) * r
+                    q = 2 * (q - r)
+
+                    if q > 0:
+                        p = -p
+                    else:
+                        q = -q
+
+                    r = e
+                    e = d
+
+                if abs(p) < abs(0.5 * q * r) or p < q * (a - x) or p < q * (b - x):
+                    # Parabolic inerpolation step
+                    d = p / q
+                    u = x + d
+                    # f must not be evaluated too close to a or b
+                    if u - a < tol2 or b - u < tol2:
+                        d = tol if x < m else -tol
+
+                else:
+                    # Golden section step
+                    e = (b - x) if x < m else (a - x)
+                    d = c * e
+
+                # f must not be evaluated too close to x
+                if abs(d) >= tol:
+                    u = x + d
+                elif d > 0:
+                    u = x + tol
+                else:
+                    u = x - tol
+
+                # Move the states to u and evaluate f(u)
+                self._update_states(u - self.alpha, du)
+                self.alpha = u
+                self.model.run()
+                self.phi = fu = self._objective()
+                self._iter_count += 1
+
+                recorder["atol"].append(self.phi)
+                recorder["alpha"].append(self.alpha)
+
+                if self.options["iprint"] > 1:
+                    print(f"    + Bracket brent LS: {self._iter_count} {self.phi} {self.alpha}")
+
+                # Update a, b, v, w, and x
+                if fu <= fx:
+                    if u < x:
+                        b = x
+                    else:
+                        a = x
+
+                    v, fv = w, fw
+                    w, fw = x, fx
+                    x, fx = u, fu
+
+                else:
+                    if u < x:
+                        a = u
+                    else:
+                        b = u
+
+                    if fu <= fw and w == x:
+                        v, fv = w, fw
+                        w, fw = u, fu
+                    elif fu <= fv and v == x and v == w:
+                        v, fv = u, fu
+
+        return x, fx
+
     def solve(self, du):
         recorder = {"atol": [], "alpha": []}
         brkt_dir = self._start_solver(du, recorder)
 
         # _start_solver exit codes
         fwd = 0
-        bak = 1
+        # bak = 1
         bnd = 2
 
         # If it hit a bound and didn't form a bracket, return the point on the bound
         if brkt_dir == bnd:
             if self.options["iprint"] > 0:
-                print(f"    + Bracket LS hit a bound without bracketing a minimum, so returning states on bound")
+                print("    + Bracket LS hit a bound without bracketing a minimum, so returning states on bound")
             return
 
         # Otherwise, search for a bracket in the assigned direction
@@ -765,6 +871,7 @@ class BracketingLineSearch(LineSearch):
 
         # PINPOINTING GOES HERE
         # Use self.bracket_low, self.bracket_mid, and self.bracket_high (each is a dictionary with alpha and phi)
+        self._brent(du, 1e-3, recorder)
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
@@ -836,10 +943,10 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds, buffer=1e-1
 
         # We first update u to reflect the required change to du (including the buffer distance).
         du_norm = np.linalg.norm(du)  # step size
-        u -= (d_alpha + buffer/du_norm) * du
+        u -= (d_alpha + buffer / du_norm) * du
         # At this point, we normalize d_alpha by alpha to figure out the relative
         # amount that the du vector has to be reduced, then apply the reduction.
-        du *= 1 - d_alpha / alpha - buffer/du_norm
+        du *= 1 - d_alpha / alpha - buffer / du_norm
 
         return True
 
