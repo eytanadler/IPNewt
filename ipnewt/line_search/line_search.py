@@ -8,7 +8,7 @@
 # ==============================================================================
 # Standard Python modules
 # ==============================================================================
-import copy
+from copy import copy, deepcopy
 
 # ==============================================================================
 # External Python modules
@@ -25,7 +25,7 @@ class LineSearch(object):
         """
         Valid linesearch options:
             "alpha": float (default=1.0), initial lineserach step length
-            "alpha max: float(default=2.0), initial max linesearch step length for forward tracking mode
+            "alpha max: float(default=10.0), initial max linesearch step length for forward tracking mode
             "maxiter": int (default=3), maximum linesearch iterations
             "residual penalty": True (default), add logarithmic penalty to residual vector
             "iprint": int (default=2), linesearch print level
@@ -548,10 +548,229 @@ class IPLineSearch(LineSearch):
         self.data["data"].append(recorder)
 
 
+class BracketingLineSearch(LineSearch):
+    def __init__(self, options={}):
+        """This linesearch brackets a minimum and then uses a variation of
+        Brent's algorithm (involving successive parabolic interpolations) to
+        home in on the minimum. It does not use gradients.
+
+        Valid bracketing linesearch options:
+            "beta": float (default = 2.0), bracketing expansion/contraction factor (must be >1)
+        """
+        super().__init__(options)
+        self._phi0 = None
+        self._dir_derivative = None
+        self.alpha = None
+
+        # Set options defaults
+        opt_defaults = {"beta": 2.0}
+
+        for opt in opt_defaults.keys():
+            if opt not in self.options.keys():
+                self.options[opt] = opt_defaults[opt]
+
+        self.data["options"] = self.options
+
+    def _start_solver(self, du, recorder):
+        """Initial iteration of the linesearch.  This method enforces
+        bounds on the first step and returns the objective function
+        value.
+
+        Parameters
+        ----------
+        du : array
+            Newton step vector
+
+        Returns
+        -------
+        int
+            Exit code to tell the bracketing what to do. The possible values are
+                0: expand the bracket forward
+                1: expand the bracket backward
+                2: hit bound without bracketing a minimum
+        """
+        # Exit codes
+        fwd = 0
+        bak = 1
+        bnd = 2
+
+        du_orig = du.copy()
+        self._iter_count = 0
+        self.alpha = 1. / self.options["beta"]  # 1/beta so after one fwd track iter forms 3 points in alpha from 0 to 1
+        self.bracket_low = {"alpha": 0, "phi": None}
+        self.bracket_high = {"alpha": copy(self.alpha), "phi": None}
+        self.bracket_mid = {"alpha": None, "phi": None}  # will depend on the objective at 1/beta
+        self._phi0 = self.bracket_low["phi"] = self._objective(du)
+        recorder["atol"].append(self._phi0)
+        recorder["alpha"].append(0)
+
+        # Print iteration
+        if self.options["iprint"] > 1:
+            print(f"    + Init LS: {self._iter_count} {self._phi0} 0.0")
+
+        # Move the states to the first alpha (1/beta)
+        self._update_states(self.alpha, du)
+
+        bounds_enforced = self._enforce_bounds(du, self.alpha)
+        self.model.run()
+        self.phi = self.bracket_high["phi"] = self._objective()
+        self._iter_count += 1
+
+        # If the bound pulled back the step with an alpha of 1/beta, compute the new alpha
+        if bounds_enforced:
+            self.alpha = self.bracket_high["alpha"] = np.linalg.norm(du) / np.linalg.norm(du_orig)
+
+        recorder["atol"].append(self.phi)
+        recorder["alpha"].append(self.alpha)
+
+        if self.options["iprint"] > 1:
+            print(f"    + Bracket LS: {self._iter_count} {self.phi} {self.alpha}")
+
+        # If phi at alpha=1/beta (or whatever the bound enforcement limited it to) is greater than the original,
+        # there's a minimum between alpha of 0 and the current alpha
+        if self.bracket_high["phi"] >= self._phi0:
+            self.bracket_mid["alpha"] = self.bracket_high["alpha"] / self.options["beta"]
+            return bak
+        # If it's less than the original phi and it's not on a bound, search forward
+        if not bounds_enforced:
+            self.bracket_mid = deepcopy(self.bracket_high)
+            self.bracket_high["alpha"] *= self.options["beta"]
+            self.bracket_high["phi"] = None
+            return fwd
+        # Otherwise, report that it's on a bound without bracketing
+        return bnd
+
+    def _fwd_bracketing(self, du, recorder):
+        """
+        Returns
+        -------
+        bool
+            True if bound is hit without bracketing, false otherwise
+        """
+        du_orig = du / self.alpha  # original du (Newton step, alpha = 1)
+
+        # Initialize the high bracket's phi
+        self._update_states(self.bracket_high["alpha"] - self.alpha, du)
+        self.alpha = self.bracket_high["alpha"]
+        self.model.run()
+        self.phi = self.bracket_high["phi"] = self._objective()
+        self._iter_count += 1
+
+        recorder["atol"].append(self.phi)
+        recorder["alpha"].append(self.alpha)
+
+        if self.options["iprint"] > 1:
+            print(f"    + Bracket fwd LS: {self._iter_count} {self.phi} {self.alpha}")
+
+        # If a bound is hit or alpha max is reached, this will be set to true
+        bound_hit = False
+
+        # Keep forward tracking the bracket until a minimum has been bracketed
+        # It is possible that forward bracketing hits a bound before bracketing or 
+        while self.bracket_mid["phi"] > self.bracket_high["phi"] or self.bracket_mid["phi"] > self.bracket_low["phi"]:
+            # If a bound has been hit and it makes it this far, it means it has not been bracketed
+            if bound_hit:
+                if self.options["iprint"] > 0:
+                    print(f"    + Bracket fwd LS hit a bound or alpha max without bracketing a minimum, so returning states on bound")
+                return True
+
+            # Shift the brackets over and compute the alpha for the new high
+            self.bracket_low = deepcopy(self.bracket_mid)
+            self.bracket_mid = deepcopy(self.bracket_high)
+            self.bracket_high["alpha"] *= self.options["beta"]
+            self._update_states(self.bracket_high["alpha"] - self.alpha, du)
+            self.alpha = self.bracket_high["alpha"]
+
+            # Enforce the bounds and compute the new alpha (if necessary)
+            bound_hit = self._enforce_bounds(du, self.alpha)
+
+            # If the bound pulled back the step, compute the new alpha
+            if bound_hit:
+                self.alpha = self.bracket_high["alpha"] = np.linalg.norm(du) / np.linalg.norm(du_orig)
+            
+            # If alpha surpassed alpha max, limit it and set the bound_hit to true
+            if self.alpha > self.options["alpha max"]:
+                self._update_states(self.options["alpha max"] - self.alpha, du)
+                self.alpha = self.bracket_high["alpha"] = self.options["alpha max"]
+                bound_hit = True
+
+            self.model.run()
+            self.phi = self.bracket_high["phi"] = self._objective()
+            self._iter_count += 1
+
+            recorder["atol"].append(self.phi)
+            recorder["alpha"].append(self.alpha)
+
+            if self.options["iprint"] > 1:
+                print(f"    + Bracket fwd LS: {self._iter_count} {self.phi} {self.alpha}")
+
+    def _bak_bracketing(self, du, recorder):
+        # Initialize the middle bracket's phi
+        self._update_states(self.bracket_mid["alpha"] - self.alpha, du)
+        self.alpha = self.bracket_mid["alpha"]
+        self.model.run()
+        self.phi = self.bracket_mid["phi"] = self._objective()
+        self._iter_count += 1
+
+        recorder["atol"].append(self.phi)
+        recorder["alpha"].append(self.alpha)
+
+        if self.options["iprint"] > 1:
+            print(f"    + Bracket back LS: {self._iter_count} {self.phi} {self.alpha}")
+
+        # Keep back tracking the bracket until a minimum has been bracketed
+        # Since the Newton solver is searching in a downhill direction (at least locally),
+        # and the high bracket at the start of the bracketing has a phi greater than
+        # the original, this should be guaranteed to bracket a minimum.
+        while self.bracket_mid["phi"] > self.bracket_high["phi"] or self.bracket_mid["phi"] > self.bracket_low["phi"]:
+            # The mid bracket becomes the high and the new mid is found
+            self.bracket_high = deepcopy(self.bracket_mid)
+            self.bracket_mid["alpha"] /= self.options["beta"]
+
+            # Evaluate at the new mid
+            self._update_states(self.bracket_mid["alpha"] - self.alpha, du)
+            self.alpha = self.bracket_mid["alpha"]
+            self.model.run()
+            self.phi = self.bracket_mid["phi"] = self._objective()
+            self._iter_count += 1
+
+            recorder["atol"].append(self.phi)
+            recorder["alpha"].append(self.alpha)
+
+            if self.options["iprint"] > 1:
+                print(f"    + Bracket back LS: {self._iter_count} {self.phi} {self.alpha}")
+
+    def solve(self, du):
+        recorder = {"atol": [], "alpha": []}
+        brkt_dir = self._start_solver(du, recorder)
+
+        # _start_solver exit codes
+        fwd = 0
+        bak = 1
+        bnd = 2
+
+        # If it hit a bound and didn't form a bracket, return the point on the bound
+        if brkt_dir == bnd:
+            if self.options["iprint"] > 0:
+                print(f"    + Bracket LS hit a bound without bracketing a minimum, so returning states on bound")
+            return
+
+        # Otherwise, search for a bracket in the assigned direction
+        if brkt_dir == fwd:
+            # Run the forward bracketing, if it hits a bound, skip pinpointing
+            if self._fwd_bracketing(du, recorder):
+                return
+        else:
+            self._bak_bracketing(du, recorder)
+
+        # PINPOINTING GOES HERE
+        # Use self.bracket_low, self.bracket_mid, and self.bracket_high (each is a dictionary with alpha and phi)
+
+
 # This is a helper function directly from OpenMDAO for enforcing bounds.
 # I didn't feel like re-writing this code.
 # link: https://github.com/OpenMDAO/OpenMDAO/blob/master/openmdao/solvers/linesearch/backtracking.py
-def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
+def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds, buffer=1e-13):
     """
     Enforce lower/upper bounds, backtracking the entire vector together.
     This method modifies both self (u) and step (du) in-place.
@@ -568,6 +787,8 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
         Lower bounds array.
     upper_bounds : array
         Upper bounds array.
+    buffer : float
+        The magnitude by which to pull the step off the bound
 
     Returns
     -------
@@ -613,11 +834,12 @@ def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds):
         # the original point was valid - i.e., no bounds were violated.
         # Therefore 0 <= d_alpha <= alpha.
 
-        # We first update u to reflect the required change to du.
-        u -= d_alpha * du
+        # We first update u to reflect the required change to du (including the buffer distance).
+        du_norm = np.linalg.norm(du)  # step size
+        u -= (d_alpha + buffer/du_norm) * du
         # At this point, we normalize d_alpha by alpha to figure out the relative
         # amount that the du vector has to be reduced, then apply the reduction.
-        du *= 1 - d_alpha / alpha
+        du *= 1 - d_alpha / alpha - buffer/du_norm
 
         return True
 
