@@ -752,7 +752,7 @@ class BracketingLineSearch(LineSearch):
         # Set the golden ratio
         maxiter = self.options["maxiter"]
         c = (3 - 5 ** (1 / 2)) / 2
-        eps = 1e-10
+        eps = np.finfo(float).eps
         e = 0
         d = 0
 
@@ -768,6 +768,9 @@ class BracketingLineSearch(LineSearch):
             self.model.run()
             self.phi = fx = self._objective()
             self._iter_count += 1
+
+            recorder["atol"].append(self.phi)
+            recorder["alpha"].append(self.alpha)
 
             if self.options["iprint"] > 1:
                 print(f"    + Bracket Brent LS: {self._iter_count} {self.phi} {self.alpha}")
@@ -824,6 +827,10 @@ class BracketingLineSearch(LineSearch):
                 else:
                     u = x - tol
 
+                # Don't allow the step to go beyond the upper bracket
+                if u > b:
+                    u = b
+
                 # Move the states to u and evaluate f(u)
                 self._update_states(u - self.alpha, du)
                 self.alpha = u
@@ -875,6 +882,7 @@ class BracketingLineSearch(LineSearch):
 
         # If it hit a bound and didn't form a bracket, return the point on the bound
         if brkt_dir == bnd:
+            self.data["data"].append(recorder)
             if self.options["iprint"] > 0:
                 print("    + Bracket LS hit a bound without bracketing a minimum, so returning states on bound")
             return
@@ -883,13 +891,16 @@ class BracketingLineSearch(LineSearch):
         if brkt_dir == fwd:
             # Run the forward bracketing, if it hits a bound, skip pinpointing
             if self._fwd_bracketing(du, recorder):
+                self.data["data"].append(recorder)
                 return
 
         # Pinpointing stage (self.bracket_mid may or may not be initialized)
         self._brent(du, 1e-2, recorder)
 
+        self.data["data"].append(recorder)
+
         if self.options["iprint"] > 0:
-                print(f"    + Bracket LS complete in {self._iter_count} iters with phi = {self.phi}, alpha = {self.alpha}")
+            print(f"    + Bracket LS complete in {self._iter_count} iters with phi = {self.phi}, alpha = {self.alpha}")
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
