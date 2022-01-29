@@ -859,8 +859,10 @@ class BracketingLineSearch(LineSearch):
                         w, fw = u, fu
                     elif fu <= fv or v == x or v == w:
                         v, fv = u, fu
+            else:
+                return x, fx
 
-            return x, fx
+        return x, fx
 
     def solve(self, du):
         recorder = {"atol": [], "alpha": []}
@@ -884,7 +886,7 @@ class BracketingLineSearch(LineSearch):
                 return
 
         # Pinpointing stage (self.bracket_mid may or may not be initialized)
-        self._brent(du, 1e-6, recorder)
+        self._brent(du, 1e-2, recorder)
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
