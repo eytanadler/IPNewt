@@ -54,6 +54,9 @@ class Model(object):
         self.states = np.ones(n_states)  # initialize all states to one
         self.jacobian = np.empty((n_states, n_states))
 
+        self.func_calls = 0
+        self.jac_calls = 0
+
         # Set the bounds if necessary
         if isinstance(lower, (float, int, complex)):
             self.lower = lower * np.ones(n_states)
@@ -104,12 +107,14 @@ class Model(object):
         """
         Internally pass states and residuals to user-defined function.
         """
+        self.func_calls += 1
         self.compute_residuals(self.states, self.residuals)
 
     def _compute_jacobian(self):
         """
         Internally pass states and jacobian to user-defined function.
         """
+        self.jac_calls += 1
         self.compute_jacobian(self.states, self.jacobian)
 
     def compute_residuals(self, states, residuals):

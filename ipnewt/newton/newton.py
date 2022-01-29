@@ -350,6 +350,7 @@ class NewtonSolver(object):
 
         if self.options["iprint"] > 0:
             if converged:
-                print(f"| NL Newton converged in {self._iter_count} iterations")
+                print(f"| NL Newton converged in {self._iter_count} iterations with " \
+                     f"{self.model.func_calls} residual and {self.model.jac_calls} jacobian evaluations")
             else:
                 print("| NL Newton failed to converge to the requested tolerance")
