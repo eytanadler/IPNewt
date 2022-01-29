@@ -215,7 +215,7 @@ class NewtonSolver(object):
                 print("Warning: Maximum penalty value reached.")
 
         if np.any(self.mu_upper > self.options["mu max"]):
-            self.mu_lower[:] = self.options["mu max"]
+            self.mu_upper[:] = self.options["mu max"]
             if self.options["iprint"] > 1:
                 print("Warning: Maximum penalty value reached.")
 

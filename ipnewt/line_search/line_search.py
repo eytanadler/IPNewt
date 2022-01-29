@@ -600,8 +600,8 @@ class BracketingLineSearch(LineSearch):
 
         # Initialization of some variables
         self._iter_count = 0
-        self.alpha = 1.  # start the search with the full Newton step
-        buffer = 1e-12  # buffer by which to pull alpha max away from the bound (absolute magnitude in states)
+        self.alpha = 1.0  # start the search with the full Newton step
+        buffer = 0.0  # buffer by which to pull alpha max away from the bound (absolute magnitude in states)
 
         # ------------------ Limit alpha max to satisfy bounds ------------------
         # Limit alpha max to find the value that will prevent the line search
@@ -710,9 +710,7 @@ class BracketingLineSearch(LineSearch):
             # If the max number of iterations has been reached, break out and return the value
             if self._iter_count >= self.options["maxiter"]:
                 if self.options["iprint"] > 0:
-                    print(
-                        f"    + Bracket fwd LS reached maximum iterations of {self.options['maxiter']}"
-                    )
+                    print(f"    + Bracket fwd LS reached maximum iterations of {self.options['maxiter']}")
                 return True
 
             # If a bound has been hit and it makes it this far, it means it has not been bracketed
@@ -746,7 +744,7 @@ class BracketingLineSearch(LineSearch):
 
             if self.options["iprint"] > 1:
                 print(f"    + Bracket fwd LS: {self._iter_count} {self.phi} {self.alpha}")
-        
+
         # It has successfully bracketed
         return False
 
@@ -763,12 +761,24 @@ class BracketingLineSearch(LineSearch):
         b = max(self.bracket_low["alpha"], self.bracket_high["alpha"])
 
         # Set the midpoint step and objective value
-        bx = self.bracket_mid["alpha"]
-        fbx = self.bracket_mid["alpha"]
+        if self.bracket_mid["alpha"] is None:
+            x = a + c * (b - a)
+            self._update_states(x - self.alpha, du)
+            self.alpha = x
+            self.model.run()
+            self.phi = fx = self._objective()
+            self._iter_count += 1
+
+            if self.options["iprint"] > 1:
+                print(f"    + Bracket Brent LS: {self._iter_count} {self.phi} {self.alpha}")
+
+        else:
+            x = self.bracket_mid["alpha"]
+            fx = self.bracket_mid["alpha"]
 
         # Initialize v, w, x, fv, fw, and fx
-        v = w = x = bx
-        fv = fw = fx = fbx
+        v = w = x
+        fv = fw = fx
 
         # Loop until reaching the maximum number of iterations
         while self._iter_count < maxiter:
@@ -793,7 +803,7 @@ class BracketingLineSearch(LineSearch):
                     r = e
                     e = d
 
-                if abs(p) < abs(0.5 * q * r) or p < q * (a - x) or p < q * (b - x):
+                if abs(p) < abs(0.5 * q * r) and p < q * (a - x) and p < q * (b - x):
                     # Parabolic inerpolation step
                     d = p / q
                     u = x + d
@@ -825,7 +835,7 @@ class BracketingLineSearch(LineSearch):
                 recorder["alpha"].append(self.alpha)
 
                 if self.options["iprint"] > 1:
-                    print(f"    + Bracket brent LS: {self._iter_count} {self.phi} {self.alpha}")
+                    print(f"    + Bracket Brent LS: {self._iter_count} {self.phi} {self.alpha}")
 
                 # Update a, b, v, w, and x
                 if fu <= fx:
@@ -844,13 +854,13 @@ class BracketingLineSearch(LineSearch):
                     else:
                         b = u
 
-                    if fu <= fw and w == x:
+                    if fu <= fw or w == x:
                         v, fv = w, fw
                         w, fw = u, fu
-                    elif fu <= fv and v == x and v == w:
+                    elif fu <= fv or v == x or v == w:
                         v, fv = u, fu
 
-        return x, fx
+            return x, fx
 
     def solve(self, du):
         recorder = {"atol": [], "alpha": []}
@@ -874,13 +884,13 @@ class BracketingLineSearch(LineSearch):
                 return
 
         # Pinpointing stage (self.bracket_mid may or may not be initialized)
-        self._brent(du, 1e-3, recorder)
+        self._brent(du, 1e-6, recorder)
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
 # I didn't feel like re-writing this code.
 # link: https://github.com/OpenMDAO/OpenMDAO/blob/master/openmdao/solvers/linesearch/backtracking.py
-def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds, buffer=0.):
+def _enforce_bounds_vector(u, du, alpha, lower_bounds, upper_bounds, buffer=0.0):
     """
     Enforce lower/upper bounds, backtracking the entire vector together.
     This method modifies both self (u) and step (du) in-place.
