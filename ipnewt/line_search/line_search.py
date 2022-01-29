@@ -576,7 +576,7 @@ class BracketingLineSearch(LineSearch):
         bounds on the first step and returns the objective function
         value.
 
-        Sets self.options["alpha max"] to the minimum of the value
+        Sets self.alpha_max_iter to the minimum of the value
         set in the option and the alpha that would hit a bound. Does
         NOT modify du.
 
@@ -601,7 +601,7 @@ class BracketingLineSearch(LineSearch):
         # Initialization of some variables
         self._iter_count = 0
         self.alpha = 1.0  # start the search with the full Newton step
-        buffer = 0.0  # buffer by which to pull alpha max away from the bound (absolute magnitude in states)
+        buffer = 1e-13  # buffer by which to pull alpha max away from the bound (absolute magnitude in states)
 
         # ------------------ Limit alpha max to satisfy bounds ------------------
         # Limit alpha max to find the value that will prevent the line search
@@ -631,8 +631,8 @@ class BracketingLineSearch(LineSearch):
         # Adjust alpha_max so that it goes right to the most restrictive bound,
         # but pull it away from the bound by a small amount so the penalty isn't NaN
         if d_alpha > 0:
-            self.options["alpha max"] *= 1 - d_alpha
-            self.options["alpha max"] -= buffer / np.linalg.norm(du)
+            self.alpha_max_iter = self.options["alpha max"] * (1 - d_alpha)
+            self.alpha_max_iter -= buffer / np.linalg.norm(du)
 
         # ------------------ Set up and evaluate the first point ------------------
         self.bracket_low = {"alpha": 0, "phi": None}
@@ -648,9 +648,9 @@ class BracketingLineSearch(LineSearch):
 
         # Check that it doesn't exceed alpha max
         bounds_enforced = False
-        if self.alpha > self.options["alpha max"]:
+        if self.alpha > self.alpha_max_iter:
             bounds_enforced = True
-            self.alpha = self.bracket_high["alpha"] = self.options["alpha max"]
+            self.alpha = self.bracket_high["alpha"] = self.alpha_max_iter
 
         # Move the states to the first alpha
         self._update_states(self.alpha, du)
@@ -687,9 +687,9 @@ class BracketingLineSearch(LineSearch):
         # If a bound is hit or alpha max is reached, this will be set to true
         bound_hit = False
 
-        if self.bracket_high["alpha"] > self.options["alpha max"]:
+        if self.bracket_high["alpha"] > self.alpha_max_iter:
             bound_hit = True
-            self.bracket_high["alpha"] = self.options["alpha max"]
+            self.bracket_high["alpha"] = self.alpha_max_iter
 
         # Initialize the high bracket's phi
         self._update_states(self.bracket_high["alpha"] - self.alpha, du)
@@ -727,9 +727,9 @@ class BracketingLineSearch(LineSearch):
             self.bracket_high["alpha"] *= self.options["beta"]
 
             # Limit the step if necessary
-            if self.alpha > self.options["alpha max"]:
+            if self.alpha > self.alpha_max_iter:
                 bound_hit = True
-                self.bracket_high["alpha"] = self.options["alpha max"]
+                self.bracket_high["alpha"] = self.alpha_max_iter
 
             # Move the states to the new alpha
             self._update_states(self.bracket_high["alpha"] - self.alpha, du)
@@ -885,6 +885,9 @@ class BracketingLineSearch(LineSearch):
 
         # Pinpointing stage (self.bracket_mid may or may not be initialized)
         self._brent(du, 1e-6, recorder)
+
+        if self.options["iprint"] > 0:
+                print(f"    + Bracket LS complete in {self._iter_count} iters with phi = {self.phi}, alpha = {self.alpha}")
 
 
 # This is a helper function directly from OpenMDAO for enforcing bounds.
