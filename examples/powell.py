@@ -32,10 +32,6 @@ from ipnewt.api import (
     BracketingLineSearch,
 )  # noqa
 
-# ==============================================================================
-# External Python modules
-# ==============================================================================
-
 # Set up niceplots
 dark_mode = True
 niceColors = niceplots.get_niceColors()
@@ -52,21 +48,13 @@ save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots
 
 # Set up problem
 prob = NewtonSolver(
-    options={
-        "maxiter": 100,
-        "tau": 1e-3,
-        "mu": 1e1,
-        "gamma": 2.0,
-        "pt_adapt": "geometric",
-        "tau max": 1e100,
-        "atol": 1e-15,
-    }
+    options={"maxiter": 100, "tau": 1e-3, "mu": 1e1, "gamma": 2.0, "pt_adapt": "LS", "tau max": 1e100, "atol": 1e-8,}
 )
 prob.model = Powell()
 prob.linear_system = LULinearSystem()
 # prob.linesearch = IPLineSearch(options={"iprint": 2, "alpha max": 100.0, "beta": 2.0, "maxiter": 5})
 # prob.linesearch = AdaptiveLineSearch(options={"iprint": 2, "alpha max": 100.0, "rho": 0.7, "FT_factor": 2.0})
-prob.linesearch = BracketingLineSearch(options={"maxiter": 5})
+prob.linesearch = BracketingLineSearch(options={"maxiter": 5, "beta": 2.0})
 
 # Set the initial state values
 prob.model.states = np.array([14.9, 14.9])
@@ -128,10 +116,10 @@ axs[4].set_xlabel("Iterations")
 plt.savefig(os.path.join(save_dir, "powell_var_hist.pdf"))
 
 # --- Plot the linesearch quality ---
-fig, axs = plt.subplots(2, 1, figsize=[10, 12])
-vizNewt.ls_ag_frequency(axs[0], prob.data, 0.1)
-vizNewt.ls_rtol_frequency(axs[1], prob.data)
-plt.savefig(os.path.join(save_dir, "ls_quality.pdf"))
+# fig, axs = plt.subplots(2, 1, figsize=[10, 12])
+# vizNewt.ls_ag_frequency(axs[0], prob.data, 0.1)
+# vizNewt.ls_rtol_frequency(axs[1], prob.data)
+# plt.savefig(os.path.join(save_dir, "ls_quality.pdf"))
 
 
 # # Plot the solution lines

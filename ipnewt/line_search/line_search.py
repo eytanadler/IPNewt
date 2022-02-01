@@ -601,6 +601,7 @@ class BracketingLineSearch(LineSearch):
         # Initialization of some variables
         self._iter_count = 0
         self.alpha = 1.0  # start the search with the full Newton step
+        self.alpha_max_iter = self.options["alpha max"]
         buffer = 1e-13  # buffer by which to pull alpha max away from the bound (absolute magnitude in states)
 
         # ------------------ Limit alpha max to satisfy bounds ------------------
@@ -631,7 +632,7 @@ class BracketingLineSearch(LineSearch):
         # Adjust alpha_max so that it goes right to the most restrictive bound,
         # but pull it away from the bound by a small amount so the penalty isn't NaN
         if d_alpha > 0:
-            self.alpha_max_iter = self.options["alpha max"] * (1 - d_alpha)
+            self.alpha_max_iter *= 1 - d_alpha
             self.alpha_max_iter -= buffer / np.linalg.norm(du)
 
         # ------------------ Set up and evaluate the first point ------------------
@@ -762,15 +763,43 @@ class BracketingLineSearch(LineSearch):
 
         # Set the midpoint step and objective value
         if self.bracket_mid["alpha"] is None:
-            x = a + c * (b - a)
+            self.bracket_mid["alpha"] = x = a + c * (b - a)
             self._update_states(x - self.alpha, du)
             self.alpha = x
             self.model.run()
-            self.phi = fx = self._objective()
+            self.phi = self.bracket_mid["phi"] = fx = self._objective()
             self._iter_count += 1
 
             recorder["atol"].append(self.phi)
             recorder["alpha"].append(self.alpha)
+
+            # If we are not guaranteed a minimum within the bracket,
+            # just take the Newton step. As far as we can tell,
+            # using the combination of the penalized residual in the line search
+            # and the "unsteady" Newton linear system formulation does not guarantee
+            # that the line search will be searching in a downhill direction;
+            # d(phi)/d(alpha) at alpha = 0 is not necessarily negative
+            if (
+                self.bracket_mid["phi"] >= self.bracket_high["phi"]
+                or self.bracket_mid["phi"] >= self.bracket_low["phi"]
+            ):
+                self._update_states(self.bracket_high["alpha"] - self.alpha, du)
+                self.alpha = self.bracket_high["alpha"]
+                self.phi = self.bracket_high["phi"]
+                self.model.run()
+                self._iter_count += 1
+
+                recorder["atol"].append(self.phi)
+                recorder["alpha"].append(self.alpha)
+
+                if self.options["iprint"] > 0:
+                    print(
+                        "    + Bracket LS could not guarantee a minimum in phi from alpha in 0 "
+                        + f"to {self.bracket_high['alpha']}, "
+                        + f"taking a step of alpha = {self.bracket_high['alpha']}"
+                    )
+
+                return
 
             if self.options["iprint"] > 1:
                 print(f"    + Bracket Brent LS: {self._iter_count} {self.phi} {self.alpha}")
@@ -780,13 +809,26 @@ class BracketingLineSearch(LineSearch):
             fx = self.bracket_mid["alpha"]
 
         # Initialize v, w, x, fv, fw, and fx
-        v = w = x
-        fv = fw = fx
+        # Set x and fx to the point with the lowest phi value (mid point)
+        x = copy(self.bracket_mid["alpha"])
+        fx = copy(self.bracket_mid["phi"])
+
+        # Set w and fw to the point with the next lowest phi and v and fv to the final one
+        if self.bracket_low["phi"] < self.bracket_high["phi"]:
+            w = copy(self.bracket_low["alpha"])
+            fw = copy(self.bracket_low["phi"])
+            v = copy(self.bracket_high["alpha"])
+            fv = copy(self.bracket_high["phi"])
+        else:
+            v = copy(self.bracket_low["alpha"])
+            fv = copy(self.bracket_low["phi"])
+            w = copy(self.bracket_high["alpha"])
+            fw = copy(self.bracket_high["phi"])
 
         # Loop until reaching the maximum number of iterations
         while self._iter_count < maxiter:
             m = 0.5 * (b + a)  # Start with bisection
-            tol1 = tol * abs(x) + eps
+            tol1 = tol + abs(x) * eps
             tol2 = 2 * tol1
 
             if abs(x - m) > tol2 - 0.5 * (b - a):
@@ -827,10 +869,6 @@ class BracketingLineSearch(LineSearch):
                 else:
                     u = x - tol
 
-                # Don't allow the step to go beyond the upper bracket
-                if u > b:
-                    u = b
-
                 # Move the states to u and evaluate f(u)
                 self._update_states(u - self.alpha, du)
                 self.alpha = u
@@ -867,9 +905,9 @@ class BracketingLineSearch(LineSearch):
                     elif fu <= fv or v == x or v == w:
                         v, fv = u, fu
             else:
-                return x, fx
+                return
 
-        return x, fx
+        return
 
     def solve(self, du):
         recorder = {"atol": [], "alpha": []}
@@ -895,7 +933,7 @@ class BracketingLineSearch(LineSearch):
                 return
 
         # Pinpointing stage (self.bracket_mid may or may not be initialized)
-        self._brent(du, 1e-2, recorder)
+        self._brent(du, 0.01, recorder)
 
         self.data["data"].append(recorder)
 
