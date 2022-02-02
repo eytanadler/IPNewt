@@ -21,7 +21,7 @@ import os
 # Extension modules
 # ==============================================================================
 import ipnewt
-from ipnewt.api import NewtonSolver, LULinearSystem, AdaptiveLineSearch, BAMF, viz2D, vizNewt
+from ipnewt.api import NewtonSolver, LULinearSystem, MinLinResLinearSystem, AdaptiveLineSearch, BracketingLineSearch, BAMF, viz2D, vizNewt
 
 # ==============================================================================
 # External Python modules
@@ -40,8 +40,10 @@ save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots
 # Set up problem
 prob = NewtonSolver(options={"maxiter": 1000, "tau": 1e-2, "mu": 1e0, "mu max": 1e100})
 prob.model = BAMF(options={"lower": 0.})
-prob.linear_system = LULinearSystem()
-prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
+# prob.linear_system = LULinearSystem()
+prob.linear_system = MinLinResLinearSystem(options={"lu switch": 1e-9})
+# prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
+prob.linesearch = BracketingLineSearch(options={"maxiter": 5, "beta": 2.0})
 
 # Set the initial state values
 prob.model.states = np.array([14.9, 14.9])

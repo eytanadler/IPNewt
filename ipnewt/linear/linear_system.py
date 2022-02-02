@@ -159,5 +159,5 @@ class LULinearSystem(LinearSystem):
             The newton update vector
         """
         # Need to flip the residuals to negative
-        b = -self.model.residuals
+        b = -self.residuals
         self.du = lu_solve(self.lu, b)
