@@ -239,7 +239,7 @@ class AdaptiveLineSearch(LineSearch):
         )
         alpha_max *= np.linalg.norm(du_bounded) / np.linalg.norm(du)
 
-        while self.alpha < alpha_max:
+        while self.alpha * self.options["FT_factor"] < alpha_max:
             # Forward track to the next alpha
             new_alpha = self.options["FT_factor"] * self.alpha
             self._update_states(new_alpha - self.alpha, du)
@@ -556,6 +556,8 @@ class BracketingLineSearch(LineSearch):
 
         Valid bracketing linesearch options:
             "beta": float (default = 2.0), bracketing expansion/contraction factor (must be >1)
+            "SPI": bool (default False), use successive parabolic interpolation instead of Brent
+            "SPI tol": float (default 1e-4), relative difference in alpha between minimum of previous and current iter
         """
         super().__init__(options)
         self._phi0 = None
@@ -563,7 +565,7 @@ class BracketingLineSearch(LineSearch):
         self.alpha = None
 
         # Set options defaults
-        opt_defaults = {"beta": 2.0}
+        opt_defaults = {"beta": 2.0, "SPI": False, "SPI tol": 1e-4}
 
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
@@ -728,7 +730,7 @@ class BracketingLineSearch(LineSearch):
             self.bracket_high["alpha"] *= self.options["beta"]
 
             # Limit the step if necessary
-            if self.alpha > self.alpha_max_iter:
+            if self.bracket_high["alpha"] > self.alpha_max_iter:
                 bound_hit = True
                 self.bracket_high["alpha"] = self.alpha_max_iter
 
@@ -909,6 +911,148 @@ class BracketingLineSearch(LineSearch):
 
         return
 
+    def _spi(self, du, recorder):
+        """
+        Use successive parabolic interpolation to find the minimum.
+        """
+        # Set the midpoint step and objective value
+        if self.bracket_mid["alpha"] is None:
+            self.bracket_mid["alpha"] = 0.5 * (self.bracket_low["alpha"] + self.bracket_high["alpha"])
+            self._update_states(self.bracket_mid["alpha"] - self.alpha, du)
+            self.alpha = self.bracket_mid["alpha"]
+            self.model.run()
+            self.phi = self.bracket_mid["phi"] = self._objective()
+            self._iter_count += 1
+
+            recorder["atol"].append(self.phi)
+            recorder["alpha"].append(self.alpha)
+
+            # If we are not guaranteed a minimum within the bracket,
+            # just take the Newton step. As far as we can tell,
+            # using the combination of the penalized residual in the line search
+            # and the "unsteady" Newton linear system formulation does not guarantee
+            # that the line search will be searching in a downhill direction;
+            # d(phi)/d(alpha) at alpha = 0 is not necessarily negative
+            if (
+                self.bracket_mid["phi"] >= self.bracket_high["phi"]
+                or self.bracket_mid["phi"] >= self.bracket_low["phi"]
+            ):
+                self._update_states(self.bracket_high["alpha"] - self.alpha, du)
+                self.alpha = self.bracket_high["alpha"]
+                self.phi = self.bracket_high["phi"]
+                self.model.run()
+                self._iter_count += 1
+
+                recorder["atol"].append(self.phi)
+                recorder["alpha"].append(self.alpha)
+
+                if self.options["iprint"] > 0:
+                    print(
+                        "    + Bracket LS could not guarantee a minimum in phi from alpha in 0 "
+                        + f"to {self.bracket_high['alpha']}, "
+                        + f"taking a step of alpha = {self.bracket_high['alpha']}"
+                    )
+
+                return
+
+            if self.options["iprint"] > 1:
+                print(f"    + Bracket SPI LS: {self._iter_count} {self.phi} {self.alpha}")
+        
+        # Initial value for parabola minimum to enter the while loop
+        x_min = np.inf
+        y = self.bracket_mid["alpha"]
+
+        # Loop until reaching the maximum number of iterations
+        while self._iter_count < self.options["maxiter"] and abs((x_min - y) / y) > self.options["SPI tol"]:
+            x = self.bracket_low["alpha"]
+            fx = self.bracket_low["phi"]
+            y = self.bracket_mid["alpha"]
+            fy = self.bracket_mid["phi"]
+            z = self.bracket_high["alpha"]
+            fz = self.bracket_high["phi"]
+
+            # Find the minimum of the parabola and evaluate it
+            x_min = y + 0.5 * ((y - z)**2 * (fy - fx) - (y - x)**2 * (fy - fz)) / ((y - x) * (fy - fz) - (y - z) * (fy - fx))
+
+            # Move the states to u and evaluate f(u)
+            self._update_states(x_min - self.alpha, du)
+            self.alpha = x_min
+            self.model.run()
+            self.phi = fx_min = self._objective()
+            self._iter_count += 1
+
+            recorder["atol"].append(self.phi)
+            recorder["alpha"].append(self.alpha)
+
+            if self.options["iprint"] > 1:
+                print(f"    + Bracket SPI LS: {self._iter_count} {self.phi} {self.alpha}")
+            
+            # Update the bracket based on the function value at x_min
+            if x < x_min < y:
+                # The new phi must be less than both fx and fy to guarantee a minimum within x and y
+                if fx_min < fx and fx_min < fy:
+                    self.bracket_mid["alpha"] = x_min
+                    self.bracket_mid["phi"] = fx_min
+                    self.bracket_high["alpha"] = y
+                    self.bracket_high["phi"] = fy
+                # Otherwise just return the current minimum (the mid point)
+                else:
+                    self._update_states(y - self.alpha, du)
+                    self.alpha = y
+                    self.model.run()
+                    self.phi = self._objective()
+                    self._iter_count += 1
+
+                    recorder["atol"].append(self.phi)
+                    recorder["alpha"].append(self.alpha)
+
+                    if self.options["iprint"] > 1:
+                        print("    + Bracket SPI LS could not guarantee a minimum within the current " +
+                              f"region alpha=({x}, {y}) with parabola minimized at {x_min} with a phi of {fx_min}, returning alpha={self.alpha} with phi={self.phi}")
+                        
+                    return
+            elif y < x_min < z:
+                # The new phi must be less than both fx and fy to guarantee a minimum within x and y
+                if fx_min < fy and fx_min < fz:
+                    self.bracket_mid["alpha"] = x_min
+                    self.bracket_mid["phi"] = fx_min
+                    self.bracket_low["alpha"] = y
+                    self.bracket_low["phi"] = fy
+                # Otherwise just return the current minimum (the mid point)
+                else:
+                    self._update_states(y - self.alpha, du)
+                    self.alpha = y
+                    self.model.run()
+                    self.phi = self._objective()
+                    self._iter_count += 1
+
+                    recorder["atol"].append(self.phi)
+                    recorder["alpha"].append(self.alpha)
+
+                    if self.options["iprint"] > 1:
+                        print("    + Bracket SPI LS could not guarantee a minimum within the current " +
+                              f"region alpha=({y}, {z}) with parabola minimized at {x_min} with a phi of {fx_min}, returning alpha={self.alpha} with phi={self.phi}")
+                    
+                    return
+            # Somehow the parabola minimum is outside the current bracket
+            else:
+                self._update_states(y - self.alpha, du)
+                self.alpha = y
+                self.model.run()
+                self.phi = self._objective()
+                self._iter_count += 1
+
+                recorder["atol"].append(self.phi)
+                recorder["alpha"].append(self.alpha)
+
+                if self.options["iprint"] > 1:
+                    print(f"    + Bracket SPI LS found a parabola minimum at alpha={x_min}, which is outside the current bracket of " +
+                          f"alpha=({x}, {z}), returning alpha={self.alpha} with phi={self.phi}")
+                
+                return
+
+        return
+
     def solve(self, du):
         recorder = {"atol": [], "alpha": []}
         brkt_dir = self._start_solver(du, recorder)
@@ -933,7 +1077,10 @@ class BracketingLineSearch(LineSearch):
                 return
 
         # Pinpointing stage (self.bracket_mid may or may not be initialized)
-        self._brent(du, 0.01, recorder)
+        if self.options["SPI"]:
+            self._spi(du, recorder)
+        else:
+            self._brent(du, 0.01, recorder)
 
         self.data["data"].append(recorder)
 

@@ -49,17 +49,17 @@ save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots
 
 # Set up problem
 prob = NewtonSolver(
-    options={"maxiter": 1000, "tau": 1e-3, "mu": 1e1, "gamma": 2.0, "pt_adapt": "LS", "tau max": 1e100, "atol": 1e-8,}
+    options={"maxiter": 100, "tau": 1e-3, "mu": 1e1, "gamma": 2.0, "pt_adapt": "LS", "tau max": 1e100, "atol": 1e-8,}
 )
 prob.model = Powell()
-# prob.linear_system = LULinearSystem()
-prob.linear_system = MinLinResLinearSystem(options={"lu switch": 50})
+prob.linear_system = LULinearSystem()
+# prob.linear_system = MinLinResLinearSystem(options={"lu switch": 50})
 # prob.linesearch = IPLineSearch(options={"iprint": 2, "alpha max": 100.0, "beta": 2.0, "maxiter": 5})
-# prob.linesearch = AdaptiveLineSearch(options={"iprint": 2, "alpha max": 100.0, "rho": 0.7, "FT_factor": 2.0})
-prob.linesearch = BracketingLineSearch(options={"maxiter": 5, "beta": 2.0})
+prob.linesearch = AdaptiveLineSearch(options={"iprint": 2, "alpha max": 100.0, "rho": 0.7, "FT_factor": 2.0})
+# prob.linesearch = BracketingLineSearch(options={"maxiter": 5, "beta": 2.0, "SPI": True, "SPI tol": 1e-1})
 
 # Set the initial state values
-prob.model.states = np.array([14.9, 14.9])
+prob.model.states = np.array([14.9*0, 14.9])
 
 # Run the problem
 prob.setup()
