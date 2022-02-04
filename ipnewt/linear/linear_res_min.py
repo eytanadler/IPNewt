@@ -48,8 +48,13 @@ class MinLinResLinearSystem(LinearSystem):
         # Need to flip the residuals to negative
         A = self.jacobian
         b = -self.residuals
+
+        # Shift the bounds to bound the step (delta x) as opposed to the absolute states
+        step_lower = self.model.lower - self.model.states
+        step_upper = self.model.upper - self.model.states
+
         if self.model.func_calls < self.options["lu switch"]:
-            opt_result = lsq_linear(A, b, bounds=(self.model.lower, self.model.upper), verbose=2)
+            opt_result = lsq_linear(A, b, bounds=(step_lower, step_upper), verbose=2)
             self.du = opt_result["x"]
         else:
             self.du = lu_solve(lu_factor(self.jacobian), b)

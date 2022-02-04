@@ -41,12 +41,12 @@ save_dir = os.path.join(os.path.split(ipnewt.__path__[0])[0], "examples", "plots
 prob = NewtonSolver(options={"maxiter": 1000, "tau": 1e-2, "mu": 1e0, "mu max": 1e100})
 prob.model = BAMF(options={"lower": 0.})
 # prob.linear_system = LULinearSystem()
-prob.linear_system = MinLinResLinearSystem(options={"lu switch": 1e-9})
+prob.linear_system = MinLinResLinearSystem(options={"lu switch": 1e9})
 # prob.linesearch = AdaptiveLineSearch(options={"alpha max": 1e6})
-prob.linesearch = BracketingLineSearch(options={"maxiter": 5, "beta": 2.0})
+prob.linesearch = BracketingLineSearch(options={"maxiter": 5, "beta": 2.0, "SPI": True, "SPI tol": 1e-1})
 
 # Set the initial state values
-prob.model.states = np.array([14.9, 14.9])
+prob.model.states = np.array([19.9, 19.9])
 
 print(prob.model.lower)
 print(prob.model.upper)
