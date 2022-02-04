@@ -990,50 +990,26 @@ class BracketingLineSearch(LineSearch):
             # Update the bracket based on the function value at x_min
             if x < x_min < y:
                 # The new phi must be less than both fx and fy to guarantee a minimum within x and y
-                if fx_min < fx and fx_min < fy:
+                if fx_min <= fx and fx_min <= fy:
                     self.bracket_mid["alpha"] = x_min
                     self.bracket_mid["phi"] = fx_min
                     self.bracket_high["alpha"] = y
                     self.bracket_high["phi"] = fy
-                # Otherwise just return the current minimum (the mid point)
+                # Otherwise there is a minimum between x_min and z
                 else:
-                    self._update_states(y - self.alpha, du)
-                    self.alpha = y
-                    self.model.run()
-                    self.phi = self._objective()
-                    self._iter_count += 1
-
-                    recorder["atol"].append(self.phi)
-                    recorder["alpha"].append(self.alpha)
-
-                    if self.options["iprint"] > 1:
-                        print("    + Bracket SPI LS could not guarantee a minimum within the current " +
-                              f"region alpha=({x}, {y}) with parabola minimized at {x_min} with a phi of {fx_min}, returning alpha={self.alpha} with phi={self.phi}")
-                        
-                    return
+                    self.bracket_low["alpha"] = x_min
+                    self.bracket_low["phi"] = fx_min
             elif y < x_min < z:
-                # The new phi must be less than both fx and fy to guarantee a minimum within x and y
-                if fx_min < fy and fx_min < fz:
+                # The new phi must be less than both fx and fy to guarantee a minimum within y and z
+                if fx_min <= fy and fx_min <= fz:
                     self.bracket_mid["alpha"] = x_min
                     self.bracket_mid["phi"] = fx_min
                     self.bracket_low["alpha"] = y
                     self.bracket_low["phi"] = fy
-                # Otherwise just return the current minimum (the mid point)
+                # Otherwise there is a minimum between x and x_min
                 else:
-                    self._update_states(y - self.alpha, du)
-                    self.alpha = y
-                    self.model.run()
-                    self.phi = self._objective()
-                    self._iter_count += 1
-
-                    recorder["atol"].append(self.phi)
-                    recorder["alpha"].append(self.alpha)
-
-                    if self.options["iprint"] > 1:
-                        print("    + Bracket SPI LS could not guarantee a minimum within the current " +
-                              f"region alpha=({y}, {z}) with parabola minimized at {x_min} with a phi of {fx_min}, returning alpha={self.alpha} with phi={self.phi}")
-                    
-                    return
+                    self.bracket_high["alpha"] = x_min
+                    self.bracket_high["phi"] = fx_min
             # Somehow the parabola minimum is outside the current bracket
             else:
                 self._update_states(y - self.alpha, du)

@@ -282,7 +282,7 @@ class NewtonSolver(object):
                 if self.options["pseudo transient"]:
                     # Switched evolution relaxation
                     if self.options["pt_adapt"] == "SER":
-                        self.linear_system.tau = self.full(
+                        self.linear_system.tau = np.full(
                             len(self.model.states), min(self.options["tau"] * phi0 / phi, self.options["tau max"])
                         )
                     elif self.options["pt_adapt"] == "LS":
