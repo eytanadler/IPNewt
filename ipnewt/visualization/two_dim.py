@@ -13,6 +13,7 @@
 # External Python modules
 # ==============================================================================
 import numpy as np
+from copy import deepcopy
 
 # ==============================================================================
 # Extension modules
@@ -263,3 +264,63 @@ def newton_soln_viz(ax, model, data, xlim, iter=0, penalty=False, pt=False, **kw
     ax.plot(u_1, u_2_res_2, **kwargs)
 
     ax.set_ylim([-10, 15])
+
+def plot_fractal(ax, xlim, ylim, prob, n_pts=100):
+    """Plots a fractal showing the points from which the solver converges.
+
+    Parameters
+    ----------
+    ax : matplotlib axis object
+        Axis on which to plot the solver path.
+    xlim : list
+        Lower and upper limit on first state
+    ylim : list
+        Lower and upper limits on second state
+    prob : IPNewt problem
+        IPNewt problem that has been setup (with linear solver and line search included)
+    n_pts : int, optional
+        Number of points in each direction for contour plots, by default 100
+
+    Returns
+    -------
+    ndarray
+        x meshgrid
+    ndarray
+        y meshgrid
+    ndarray
+        1 if solves, 0 otherwise
+    """
+    x, y = np.meshgrid(np.linspace(*xlim, n_pts), np.linspace(*ylim, n_pts), indexing="xy")
+    sol = np.zeros((n_pts, n_pts))
+
+    # The two solutions
+    atol = prob.data["options"]["atol"]
+    rtol = prob.data["options"]["rtol"]
+
+    # Start the solver from every point
+    for i in range(n_pts):
+        for j in range(n_pts):
+            # Set up problem
+            p = deepcopy(prob)
+
+            # Set the initial state values
+            p.model.states = np.array([x[i, j], y[i, j]])
+
+            try:
+                p.solve()
+            except:
+                sol[i, j] = 0
+                continue
+
+            if p.data["atol"][-1] < atol or p.data["rtol"][-1] < rtol:
+                sol[i, j] = 1
+            else:
+                sol[i, j] = 0
+
+    # Plot the results
+    ax.contourf(x, y, sol, levels=[-0.5, 0.5, 1.5, 2.5], cmap="viridis")
+    c = contour(ax.gca(), prob.model, xlim, ylim, n_pts=500, levels=100, zorder=1, alpha=0.5, cmap="viridis")
+    ax.colorbar(c)
+    bounds(ax.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
+    ax.set_xlabel(r"$u_1$")
+    ax.set_ylabel(r"$u_2$")
