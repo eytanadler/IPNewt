@@ -304,7 +304,6 @@ class NewtonSolver(object):
 
             # Solve the linear system
             self.data["linear_data"].append(self.linear_system.data.copy())
-            print(np.linalg.cond(self.linear_system.jacobian))
             self.linear_system.factorize()
             self.linear_system.solve()
 

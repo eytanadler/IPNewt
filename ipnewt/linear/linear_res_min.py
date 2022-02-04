@@ -29,12 +29,13 @@ class MinLinResLinearSystem(LinearSystem):
     def __init__(self, options={}):
         """
         Valid LinearSystem options:
-            "lu switch" : (default 100) number of model function evaluations after which to switch to a pure linear solver
+            "lu switch": (default 100) number of model function evaluations after which to switch to a pure linear solver
+            "iprint": (default 2), verbosity of SciPy's lsq_linear solver
         """
         super().__init__(options)
 
         # Set option defaults if not already defined
-        opt_defaults = {"lu switch": 100}
+        opt_defaults = {"lu switch": 100, "iprint": 2}
         for opt in opt_defaults.keys():
             if opt not in self.options.keys():
                 self.options[opt] = opt_defaults[opt]
@@ -54,7 +55,7 @@ class MinLinResLinearSystem(LinearSystem):
         step_upper = self.model.upper - self.model.states
 
         if self.model.func_calls < self.options["lu switch"]:
-            opt_result = lsq_linear(A, b, bounds=(step_lower, step_upper), verbose=2)
+            opt_result = lsq_linear(A, b, bounds=(step_lower, step_upper), verbose=self.options["iprint"])
             self.du = opt_result["x"]
         else:
             self.du = lu_solve(lu_factor(self.jacobian), b)

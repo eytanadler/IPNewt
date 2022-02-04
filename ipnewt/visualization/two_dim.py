@@ -302,6 +302,7 @@ def plot_fractal(ax, xlim, ylim, prob, n_pts=100):
         for j in range(n_pts):
             # Set up problem
             p = deepcopy(prob)
+            p.model.func_calls = 0
 
             # Set the initial state values
             p.model.states = np.array([x[i, j], y[i, j]])
@@ -309,18 +310,24 @@ def plot_fractal(ax, xlim, ylim, prob, n_pts=100):
             try:
                 p.solve()
             except:
-                sol[i, j] = 0
+                sol[i, j] = np.NaN
                 continue
 
             if p.data["atol"][-1] < atol or p.data["rtol"][-1] < rtol:
-                sol[i, j] = 1
+                sol[i, j] = p.model.func_calls
             else:
-                sol[i, j] = 0
+                sol[i, j] = np.NaN
+            
+            if sol[i, j] == np.NaN:
+                print(f"{(i * n_pts + j)/(n_pts**2)*100:2.2f}% done, failed")
+            else:
+                print(f"{(i * n_pts + j)/(n_pts**2)*100:2.2f}% done, converged")
 
     # Plot the results
-    ax.contourf(x, y, sol, levels=[-0.5, 0.5, 1.5, 2.5], cmap="viridis")
-    c = contour(ax.gca(), prob.model, xlim, ylim, n_pts=500, levels=100, zorder=1, alpha=0.5, cmap="viridis")
-    ax.colorbar(c)
-    bounds(ax.gca(), prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
+    c = ax.contourf(x, y, sol, cmap="viridis", alpha=1.)  # levels=[-1.5, 0.3, 1.1], 
+    import matplotlib.pyplot as plt
+    plt.gcf().colorbar(c)
+    c = contour(ax, prob.model, xlim, ylim, n_pts=500, zorder=1, alpha=0.5, colors="w")
+    bounds(ax, prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
     ax.set_xlabel(r"$u_1$")
     ax.set_ylabel(r"$u_2$")
