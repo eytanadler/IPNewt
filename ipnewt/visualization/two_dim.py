@@ -327,7 +327,7 @@ def plot_fractal(ax, xlim, ylim, prob, n_pts=100):
     c = ax.contourf(x, y, sol, cmap="viridis", alpha=1.)  # levels=[-1.5, 0.3, 1.1], 
     import matplotlib.pyplot as plt
     plt.gcf().colorbar(c)
-    c = contour(ax, prob.model, xlim, ylim, n_pts=500, zorder=1, alpha=0.5, colors="w")
+    c = contour(ax, prob.model, xlim, ylim, n_pts=500, levels=100, zorder=1, alpha=0.5, colors="w")
     bounds(ax, prob.model, xlim, ylim, colors="white", alpha=0.5, zorder=2, linestyles="solid")
     ax.set_xlabel(r"$u_1$")
     ax.set_ylabel(r"$u_2$")
